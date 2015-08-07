@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #location of local git repository for exported files
-repo=????
+repo=$1
 #the remote repository to push to
 remote=github
 #the branch of the remote repository to push to
