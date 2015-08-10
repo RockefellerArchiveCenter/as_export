@@ -12,9 +12,10 @@ user = 'admin'
 # the password for the username above
 password = 'admin'
 # export destinations, should end with a trailing slash
-EADdestination = '/Users/harnold/Desktop/data/ead/'
-PDFdestination = '/Users/harnold/Desktop/data/pdf/'
-METSdestination = '/Users/harnold/Desktop/data/mets/'
+dataDestination = '/Users/harnold/Desktop/data/'
+EADdestination = dataDestination + 'ead/'
+METSdestination = dataDestination + 'mets/'
+PDFdestination = '/Users/harnold/Desktop/pdf/'
 # EAD Export options
 exportUnpublished = 'false'
 exportDaos = 'true'
@@ -76,7 +77,7 @@ def createPDF(resourceID):
     logging.warning('%s%s/%s.pdf created', PDFdestination, resourceID, resourceID)
 
 # Exports EAD file
-def exportEAD(resourceID, id):
+def exportEAD(resourceID, id, headers):
     ead = requests.get(baseURL + '/repositories/'+repository+'/resource_descriptions/'+str(id)+'.xml?include_unpublished='+exportUnpublished+'&include_daos='+exportDaos+'&numbered_cs='+exportNumbered+'&print_pdf='+exportPdf, headers=headers, stream=True)
     if not os.path.exists(EADdestination+resourceID+'/'):
         os.makedirs(EADdestination + resourceID+'/')
@@ -89,7 +90,7 @@ def exportEAD(resourceID, id):
     prettyPrintXml(EADdestination+resourceID+'/'+resourceID+'.xml', resourceID, id)
 
 # Exports METS file
-def exportMETS(doID):
+def exportMETS(doID, headers):
     mets = requests.get(baseURL + '/repositories/'+repository+'/digital_objects/mets/'+str(id)+'.xml', headers=headers).text
     if not os.path.exists(METSdestination+doID+'/'):
         os.makedirs(METSdestination+doID+'/')
@@ -117,17 +118,17 @@ def removeMETS(doID):
     else:
         logging.warning('%s.xml does not exist, no need to delete', doID)
 
-def handleResource(resource):
+def handleResource(resource, headers):
     resourceID = resource["id_0"]
     identifier = resource["uri"].split('/repositories/'+repository+'/resources/',1)[1]
     if resource["publish"] and not 'LI' in resourceID:
-        exportEAD(resourceID, identifier)
+        exportEAD(resourceID, identifier, headers)
         uriExportList.append(resource["uri"])
     else:
         removeEAD(resourceID, identifier)
         uriDeleteList.append(resource["uri"])
 
-def handleDigitalObject(digital_object):
+def handleDigitalObject(digital_object, headers):
     doID = digital_object["digital_object_id"]
     if digital_object["linked_instances"]:
         component = (requests.get(baseURL + digital_object["linked_instances"][0]["ref"], headers=headers)).json()
@@ -136,50 +137,51 @@ def handleDigitalObject(digital_object):
         else:
             resource = component["resource"]["ref"]
         if resource in uriExportList:
-            exportMETS(doID)
+            exportMETS(doID, headers)
         elif resource in uriDeleteList:
             removeMETS(doID)
 
 # Looks for updated resources
-def checkResources():
+def checkResources(lastExport, headers):
     resourceIds = requests.get(baseURL + '/repositories/'+repository+'/resources?all_ids=true&modified_since='+str(lastExport), headers=headers)
     for id in resourceIds.json():
+        if not requests.get(baseURL + '/repositories/'+repository+'/resources/' + str(id), headers=headers):
+            headers = authenticate()
         resource = (requests.get(baseURL + '/repositories/'+repository+'/resources/' + str(id), headers=headers)).json()
-        handleResource(resource)
+        handleResource(resource, headers)
 
 # Looks for updated components
-def checkObjects():
+def checkObjects(lastExport, headers):
     archival_objects = requests.get(baseURL + '/repositories/'+repository+'/archival_objects?all_ids=true&modified_since='+str(lastExport), headers=headers)
     for id in archival_objects.json():
         archival_object = requests.get(baseURL + '/repositories/'+repository+'/archival_objects/'+str(id), headers=headers).json()
         resource = (requests.get(baseURL +archival_object["resource"]["ref"], headers=headers)).json()
         if not resource["uri"] in uriExportList and not resource["uri"] in uriDeleteList:
-            handleResource(resource)
+            handleResource(resource, headers)
 
-def checkDigital():
+def checkDigital(headers):
     doIds = requests.get(baseURL + '/repositories/'+repository+'/digital_objects?all_ids=true', headers=headers)
     for id in doIds.json():
         digital_object = (requests.get(baseURL + '/repositories/'+repository+'/digital_objects/' + str(id), headers=headers)).json()
-        handleDigitalObject(digital_object)
+        handleDigitalObject(digital_object, headers)
 
-#run script to version using git CAN THIS TAKE AN ARGUMENT SO YOU ONLY HAVE TO CHANGE VARIABLES IN ONE PLACE?
+#run script to version using git
 def versionFiles():
     logging.warning('Versioning files and pushing to Github')
-    destinations = [EADdestination, PDFdestination, METSdestination]
+    destinations = [dataDestination, PDFdestination]
     for d in destinations:
         os.system("./gitVersion.sh %s", d)
-
-headers = authenticate()
-lastExport = handleTime()
 
 def main():
     logging.warning('=========================================')
     logging.warning('Export started')
+    headers = authenticate()
+    lastExport = handleTime()
     makeDestinations()
-    checkResources()
-    checkObjects()
+    checkResources(lastExport, headers)
+    checkObjects(lastExport, headers)
     if len(uriExportList) > 0 or len(uriDeleteList) > 0:
-        checkDigital()
+        checkDigital(headers)
         versionFiles()
     else:
         logging.warning('Nothing was exported')
