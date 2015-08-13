@@ -130,7 +130,7 @@ def handleResource(resource, headers):
 
 def handleDigitalObject(digital_object, headers):
     doID = digital_object["digital_object_id"]
-    if digital_object["linked_instances"]:
+    if digital_object["publish"]:
         component = (requests.get(baseURL + digital_object["linked_instances"][0]["ref"], headers=headers)).json()
         if component["jsonmodel_type"] == 'resource':
             resource = digital_object["linked_instances"][0]["ref"]
@@ -140,10 +140,14 @@ def handleDigitalObject(digital_object, headers):
             exportMETS(doID, headers)
         elif resource in uriDeleteList:
             removeMETS(doID)
+    else:
+        removeMETS(doID)
 
 # Looks for updated resources
-def checkResources(lastExport, headers):
+def checkResources(lastExport):
+    headers = authenticate()
     resourceIds = requests.get(baseURL + '/repositories/'+repository+'/resources?all_ids=true&modified_since='+str(lastExport), headers=headers)
+    logging.warning('*** Checking resources ***')
     for id in resourceIds.json():
         if not requests.get(baseURL + '/repositories/'+repository+'/resources/' + str(id), headers=headers):
             headers = authenticate()
@@ -151,40 +155,58 @@ def checkResources(lastExport, headers):
         handleResource(resource, headers)
 
 # Looks for updated components
-def checkObjects(lastExport, headers):
+def checkObjects(lastExport):
+    headers = authenticate()
     archival_objects = requests.get(baseURL + '/repositories/'+repository+'/archival_objects?all_ids=true&modified_since='+str(lastExport), headers=headers)
+    logging.warning('*** Checking archival objects ***')
     for id in archival_objects.json():
+        if not requests.get(baseURL + '/repositories/'+repository+'/archival_objects/'+str(id), headers=headers):
+            headers = authenticate()
         archival_object = requests.get(baseURL + '/repositories/'+repository+'/archival_objects/'+str(id), headers=headers).json()
         resource = (requests.get(baseURL +archival_object["resource"]["ref"], headers=headers)).json()
         if not resource["uri"] in uriExportList and not resource["uri"] in uriDeleteList:
             handleResource(resource, headers)
 
-def checkDigital(headers):
-    doIds = requests.get(baseURL + '/repositories/'+repository+'/digital_objects?all_ids=true', headers=headers)
+def checkDigital(lastExport):
+    headers = authenticate()
+    doIds = requests.get(baseURL + '/repositories/'+repository+'/digital_objects?all_ids=true&modified_since='+str(lastExport), headers=headers)
+    logging.warning('*** Checking digital objects ***')
     for id in doIds.json():
+        if not requests.get(baseURL + '/repositories/'+repository+'/digital_objects/' + str(id), headers=headers):
+            headers = authenticate()
+        digital_object = (requests.get(baseURL + '/repositories/'+repository+'/digital_objects/' + str(id), headers=headers)).json()
+        handleDigitalObject(digital_object, headers)
+
+def associatedDigital():
+    headers = authenticate()
+    doIds = requests.get(baseURL + '/repositories/'+repository+'/digital_objects?all_ids=true', headers=headers)
+    logging.warning('*** Checking associated digital objects ***')
+    for id in doIds.json():
+        if not requests.get(baseURL + '/repositories/'+repository+'/digital_objects/' + str(id), headers=headers):
+            headers = authenticate()
         digital_object = (requests.get(baseURL + '/repositories/'+repository+'/digital_objects/' + str(id), headers=headers)).json()
         handleDigitalObject(digital_object, headers)
 
 #run script to version using git
 def versionFiles():
-    logging.warning('Versioning files and pushing to Github')
+    logging.warning('*** Versioning files and pushing to Github ***')
     destinations = [dataDestination, PDFdestination]
     for d in destinations:
-        os.system("./gitVersion.sh %s", d)
+        os.system("./gitVersion.sh "+d)
 
 def main():
     logging.warning('=========================================')
-    logging.warning('Export started')
-    headers = authenticate()
+    logging.warning('*** Export started ***')
     lastExport = handleTime()
     makeDestinations()
-    checkResources(lastExport, headers)
-    checkObjects(lastExport, headers)
+    checkResources(lastExport)
+    checkObjects(lastExport)
+    checkDigital(lastExport)
     if len(uriExportList) > 0 or len(uriDeleteList) > 0:
-        checkDigital(headers)
+        associatedDigital()
         versionFiles()
     else:
-        logging.warning('Nothing was exported')
-    logging.warning('Export completed')
+        logging.warning('*** Nothing was exported ***')
+    logging.warning('*** Export completed ***')
 
 main()
