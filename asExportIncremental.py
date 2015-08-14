@@ -51,17 +51,19 @@ def authenticate():
         logging.error('Authentication failed!')
 
 # gets time of last export
-def handleTime():
+def readTime():
     # last export time in Unix epoch time, for example 1439563523
     if os.path.isfile(lastExportFilepath):
         with open(lastExportFilepath, 'rb') as pickle_handle:
             lastExport = str(pickle.load(pickle_handle))
     else:
         lastExport = 0
-    # store the current time in Unix epoch time, for example 1439563523
-    with open(lastExportFilepath, 'wb') as pickle_handle:
-        pickle.dump(int(time.time()), pickle_handle)
     return lastExport
+
+# store the current time in Unix epoch time, for example 1439563523
+def updateTime():
+    with open(lastExportFilepath, 'wb') as pickle_handle:
+        pickle.dump(exportStartTime, pickle_handle)
 
 # formats XML files
 def prettyPrintXml(filePath, resourceID, id):
@@ -206,7 +208,8 @@ def versionFiles():
 def main():
     logging.warning('=========================================')
     logging.warning('*** Export started ***')
-    lastExport = handleTime()
+    exportStartTime = int(time.time())
+    lastExport = readTime()
     makeDestinations()
     findUpdatedResources(lastExport)
     findUpdatedObjects(lastExport)
@@ -217,5 +220,6 @@ def main():
         logging.warning('*** Nothing was exported ***')
     #versionFiles()
     logging.warning('*** Export completed ***')
+    updateTime()
 
 main()
