@@ -61,7 +61,7 @@ def updateTime():
         pickle.dump(exportStartTime, pickle_handle)
 
 # formats XML files
-def prettyPrintXml(filePath, resourceID, id):
+def prettyPrintXml(filePath, resourceID):
     assert filePath is not None
     parser = etree.XMLParser(resolve_entities=False, strip_cdata=False, remove_blank_text=True)
     try:
@@ -71,7 +71,6 @@ def prettyPrintXml(filePath, resourceID, id):
         createPDF(resourceID)
     except:
         logging.warning('%s is invalid and should be removed', resourceID)
-        #removeEAD(resourceID, id)
 
 # creates pdf from EAD
 def createPDF(resourceID):
@@ -91,7 +90,7 @@ def exportEAD(resourceID, identifier, headers):
     f.close
     logging.warning('%s exported to %s', resourceID, EADdestination)
     #validate here
-    prettyPrintXml(EADdestination+resourceID+'/'+resourceID+'.xml', resourceID, identifier)
+    prettyPrintXml(EADdestination+resourceID+'/'+resourceID+'.xml', resourceID)
 
 # Exports METS file
 def exportMETS(doID, headers):
