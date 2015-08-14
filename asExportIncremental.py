@@ -6,15 +6,10 @@ from lxml import etree
 # local config file, containing variables
 config = ConfigParser.ConfigParser()
 config.read('local_settings.cfg')
-# the base URL of your ArchivesSpace installation
-baseURL = config.get('ArchivesSpace', 'baseURL')
-# the id of your repository
-repository = config.get('ArchivesSpace', 'repository')
-# the username to authenticate with
-user = config.get('ArchivesSpace', 'user')
-# the password for the username above
-password = config.get('ArchivesSpace', 'password')
-# stores a variable for the last time this script was run
+
+dictionary = {'baseURL': config.get('ArchivesSpace', 'baseURL'), 'repository':config.get('ArchivesSpace', 'repository'), 'user': config.get('ArchivesSpace', 'user'), 'password': config.get('ArchivesSpace', 'password')}
+repositoryBaseURL = '{baseURL}/repositories/{repository}/'.format(**dictionary)
+
 lastExportFilepath = config.get('LastExport', 'filepath')
 # EAD Export options
 exportUnpublished = config.get('EADexport', 'exportUnpublished')
@@ -44,7 +39,7 @@ def makeDestinations():
 # authenticates the session
 def authenticate():
     try:
-        auth = requests.post(baseURL + '/users/'+user+'/login?password='+password).json()
+        auth = requests.post('{baseURL}/users/{user}/login?password={password}'.format(**dictionary)).json()
         token = {'X-ArchivesSpace-Session':auth["session"]}
         return token
     except ConnectionError:
@@ -86,8 +81,8 @@ def createPDF(resourceID):
     logging.warning('%s%s/%s.pdf created', PDFdestination, resourceID, resourceID)
 
 # Exports EAD file
-def exportEAD(resourceID, id, headers):
-    ead = requests.get(baseURL + '/repositories/'+repository+'/resource_descriptions/'+str(id)+'.xml?include_unpublished='+exportUnpublished+'&include_daos='+exportDaos+'&numbered_cs='+exportNumbered+'&print_pdf='+exportPdf, headers=headers, stream=True)
+def exportEAD(resourceID, identifier, headers):
+    ead = requests.get(repositoryBaseURL+'resource_descriptions/'+str(identifier)+'.xml?include_unpublished={exportUnpublished}&include_daos={exportDaos}&numbered_cs={exportNumbered}&print_pdf={exportPdf}'.format(exportUnpublished=exportUnpublished, exportDaos=exportDaos, exportNumbered=exportNumbered, exportPdf=exportPdf), headers=headers, stream=True)
     if not os.path.exists(EADdestination+resourceID+'/'):
         os.makedirs(EADdestination + resourceID+'/')
     with open(EADdestination+resourceID+'/'+resourceID+'.xml', 'wb') as f:
@@ -96,11 +91,11 @@ def exportEAD(resourceID, id, headers):
     f.close
     logging.warning('%s exported to %s', resourceID, EADdestination)
     #validate here
-    prettyPrintXml(EADdestination+resourceID+'/'+resourceID+'.xml', resourceID, id)
+    prettyPrintXml(EADdestination+resourceID+'/'+resourceID+'.xml', resourceID, identifier)
 
 # Exports METS file
 def exportMETS(doID, headers):
-    mets = requests.get(baseURL + '/repositories/'+repository+'/digital_objects/mets/'+str(id)+'.xml', headers=headers).text
+    mets = requests.get(repositoryBaseURL+'digital_objects/mets/'+str(doID)+'.xml', headers=headers).text
     if not os.path.exists(METSdestination+doID+'/'):
         os.makedirs(METSdestination+doID+'/')
     f = open(METSdestination+doID+'/'+doID+'.xml', 'w')
@@ -110,7 +105,7 @@ def exportMETS(doID, headers):
     #validate here
 
 # Deletes EAD file if it exists
-def removeEAD(resourceID, id):
+def removeEAD(resourceID):
     if os.path.isfile(EADdestination+resourceID+'/'+resourceID+'.xml'):
         os.remove(EADdestination+resourceID+'/'+resourceID+'.xml')
         os.rmdir(EADdestination+resourceID+'/')
@@ -134,7 +129,7 @@ def handleResource(resource, headers):
         exportEAD(resourceID, identifier, headers)
         uriExportList.append(resource["uri"])
     else:
-        removeEAD(resourceID, identifier)
+        removeEAD(resourceID)
         uriDeleteList.append(resource["uri"])
 
 def handleDigitalObject(digital_object, headers):
@@ -155,23 +150,23 @@ def handleDigitalObject(digital_object, headers):
 # Looks for updated resources
 def findUpdatedResources(lastExport):
     headers = authenticate()
-    resourceIds = requests.get(baseURL + '/repositories/'+repository+'/resources?all_ids=true&modified_since='+str(lastExport), headers=headers)
+    resourceIds = requests.get(repositoryBaseURL+'resources?all_ids=true&modified_since='+str(lastExport), headers=headers)
     logging.warning('*** Checking resources ***')
     for r in resourceIds.json():
-        if not requests.get(baseURL + '/repositories/'+repository+'/resources/' + str(r), headers=headers):
+        if not requests.get(repositoryBaseURL+'resources/' + str(r), headers=headers):
             headers = authenticate()
-        resource = (requests.get(baseURL + '/repositories/'+repository+'/resources/' + str(r), headers=headers)).json()
+        resource = (requests.get(repositoryBaseURL+'resources/' + str(r), headers=headers)).json()
         handleResource(resource, headers)
 
 # Looks for updated components
 def findUpdatedObjects(lastExport):
     headers = authenticate()
-    archival_objects = requests.get(baseURL + '/repositories/'+repository+'/archival_objects?all_ids=true&modified_since='+str(lastExport), headers=headers)
+    archival_objects = requests.get(repositoryBaseURL+'archival_objects?all_ids=true&modified_since='+str(lastExport), headers=headers)
     logging.warning('*** Checking archival objects ***')
     for a in archival_objects.json():
-        if not requests.get(baseURL + '/repositories/'+repository+'/archival_objects/'+str(a), headers=headers):
+        if not requests.get(repositoryBaseURL+'archival_objects/'+str(a), headers=headers):
             headers = authenticate()
-        archival_object = requests.get(baseURL + '/repositories/'+repository+'/archival_objects/'+str(a), headers=headers).json()
+        archival_object = requests.get(repositoryBaseURL+'archival_objects/'+str(a), headers=headers).json()
         resource = (requests.get(baseURL +archival_object["resource"]["ref"], headers=headers)).json()
         if not resource["uri"] in uriExportList and not resource["uri"] in uriDeleteList:
             handleResource(resource, headers)
@@ -179,23 +174,23 @@ def findUpdatedObjects(lastExport):
 # Looks for updated digital objects
 def findUpdatedDigitalObjects(lastExport):
     headers = authenticate()
-    doIds = requests.get(baseURL + '/repositories/'+repository+'/digital_objects?all_ids=true&modified_since='+str(lastExport), headers=headers)
+    doIds = requests.get(repositoryBaseURL+'digital_objects?all_ids=true&modified_since='.format(**dictionary)+str(lastExport), headers=headers)
     logging.warning('*** Checking digital objects ***')
     for d in doIds.json():
-        if not requests.get(baseURL + '/repositories/'+repository+'/digital_objects/' + str(d), headers=headers):
+        if not requests.get(repositoryBaseURL+'digital_objects/' + str(d), headers=headers):
             headers = authenticate()
-        digital_object = (requests.get(baseURL + '/repositories/'+repository+'/digital_objects/' + str(d), headers=headers)).json()
+        digital_object = (requests.get(repositoryBaseURL+'digital_objects/' + str(d), headers=headers)).json()
         handleDigitalObject(digital_object, headers)
 
 # Looks for digital objects associated with updated resource records
 def findAssociatedDigitalObjects():
     headers = authenticate()
-    doIds = requests.get(baseURL + '/repositories/'+repository+'/digital_objects?all_ids=true', headers=headers)
+    doIds = requests.get(repositoryBaseURL+'digital_objects?all_ids=true', headers=headers)
     logging.warning('*** Checking associated digital objects ***')
     for d in doIds.json():
-        if not requests.get(baseURL + '/repositories/'+repository+'/digital_objects/' + str(d), headers=headers):
+        if not requests.get(repositoryBaseURL+'digital_objects/' + str(d), headers=headers):
             headers = authenticate()
-        digital_object = (requests.get(baseURL + '/repositories/'+repository+'/digital_objects/' + str(d), headers=headers)).json()
+        digital_object = (requests.get(repositoryBaseURL+'digital_objects/' + str(d), headers=headers)).json()
         handleDigitalObject(digital_object, headers)
 
 #run script to version using git
