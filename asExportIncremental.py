@@ -47,7 +47,7 @@ def authenticate():
         auth = requests.post(baseURL + '/users/'+user+'/login?password='+password).json()
         token = {'X-ArchivesSpace-Session':auth["session"]}
         return token
-    except:
+    except ConnectionError:
         logging.error('Authentication failed!')
 
 # gets time of last export
@@ -151,7 +151,7 @@ def handleDigitalObject(digital_object, headers):
         removeMETS(doID)
 
 # Looks for updated resources
-def checkResources(lastExport):
+def findUpdatedResources(lastExport):
     headers = authenticate()
     resourceIds = requests.get(baseURL + '/repositories/'+repository+'/resources?all_ids=true&modified_since='+str(lastExport), headers=headers)
     logging.warning('*** Checking resources ***')
@@ -162,7 +162,7 @@ def checkResources(lastExport):
         handleResource(resource, headers)
 
 # Looks for updated components
-def checkObjects(lastExport):
+def findUpdatedObjects(lastExport):
     headers = authenticate()
     archival_objects = requests.get(baseURL + '/repositories/'+repository+'/archival_objects?all_ids=true&modified_since='+str(lastExport), headers=headers)
     logging.warning('*** Checking archival objects ***')
@@ -175,7 +175,7 @@ def checkObjects(lastExport):
             handleResource(resource, headers)
 
 # Looks for updated digital objects
-def checkDigital(lastExport):
+def findUpdatedDigitalObjects(lastExport):
     headers = authenticate()
     doIds = requests.get(baseURL + '/repositories/'+repository+'/digital_objects?all_ids=true&modified_since='+str(lastExport), headers=headers)
     logging.warning('*** Checking digital objects ***')
@@ -186,7 +186,7 @@ def checkDigital(lastExport):
         handleDigitalObject(digital_object, headers)
 
 # Looks for digital objects associated with updated resource records
-def associatedDigital():
+def findAssociatedDigitalObjects():
     headers = authenticate()
     doIds = requests.get(baseURL + '/repositories/'+repository+'/digital_objects?all_ids=true', headers=headers)
     logging.warning('*** Checking associated digital objects ***')
@@ -208,11 +208,11 @@ def main():
     logging.warning('*** Export started ***')
     lastExport = handleTime()
     makeDestinations()
-    checkResources(lastExport)
-    checkObjects(lastExport)
-    checkDigital(lastExport)
+    findUpdatedResources(lastExport)
+    findUpdatedObjects(lastExport)
+    findUpdatedDigitalObjects(lastExport)
     if len(uriExportList) > 0 or len(uriDeleteList) > 0:
-        associatedDigital()
+        findAssociatedDigitalObjects()
     else:
         logging.warning('*** Nothing was exported ***')
     #versionFiles()
