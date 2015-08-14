@@ -1,35 +1,39 @@
 #!/usr/bin/env python
 
-import os, requests, json, sys, time, pickle, logging
+import os, requests, json, sys, time, pickle, logging, ConfigParser
 from lxml import etree
 
+# local config file, containing variables
+config = ConfigParser.ConfigParser()
+config.read('local_settings.cfg')
 # the base URL of your ArchivesSpace installation
-baseURL = 'http://localhost:8089'
+baseURL = config.get('ArchivesSpace', 'baseURL')
 # the id of your repository
-repository = '2'
+repository = config.get('ArchivesSpace', 'repository')
 # the username to authenticate with
-user = 'admin'
+user = config.get('ArchivesSpace', 'user')
 # the password for the username above
-password = 'admin'
+password = config.get('ArchivesSpace', 'password')
+# stores a variable for the last time this script was run
+lastExportFilepath = config.get('LastExport', 'filepath')
+# EAD Export options
+exportUnpublished = config.get('EADexport', 'exportUnpublished')
+exportDaos = config.get('EADexport', 'exportDaos')
+exportNumbered = config.get('EADexport', 'exportNumbered')
+exportPdf = config.get('EADexport', 'exportPdf')
+# URI lists (to be populated by URIs of exported or deleted resource records)
+uriExportList = []
+uriDeleteList = []
+# PDF export utility filePath
+PDFConvertFilepath = config.get('PDFexport', 'filepath')
+# logging configs
+logging.basicConfig(filename=config.get('Logging', 'filename'),format=config.get('Logging', 'format', 1), datefmt=config.get('Logging', 'datefmt', 1), level=config.get('Logging', 'level', 0))
+
 # export destinations, should end with a trailing slash
 dataDestination = '/Users/harnold/Desktop/data/'
 EADdestination = dataDestination + 'ead/'
 METSdestination = dataDestination + 'mets/'
 PDFdestination = '/Users/harnold/Desktop/pdf/'
-# EAD Export options
-exportUnpublished = 'false'
-exportDaos = 'true'
-exportNumbered = 'false'
-exportPdf = 'false'
-# URI lists (to be populated by URIs of exported or deleted resource records)
-uriExportList = []
-uriDeleteList = []
-# stores a variable for the last time this script was run
-lastExportFilepath = 'lastExport.pickle'
-# PDF export utility filePath
-PDFConvertFilepath = 'ead2pdf.jar'
-# logging configs
-logging.basicConfig(filename='log.txt',format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.WARNING)
 
 def makeDestinations():
     destinations = [EADdestination, PDFdestination, METSdestination]
@@ -211,7 +215,7 @@ def main():
         associatedDigital()
     else:
         logging.warning('*** Nothing was exported ***')
-    versionFiles()
+    #versionFiles()
     logging.warning('*** Export completed ***')
 
 main()
