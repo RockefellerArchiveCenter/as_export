@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, requests, json, sys, time, pickle, logging, ConfigParser
+import os, requests, json, sys, time, pickle, logging, ConfigParser, re
 from lxml import etree
 
 # local config file, containing variables
@@ -127,7 +127,7 @@ def removeMETS(doID):
 
 def handleResource(resource, headers):
     resourceID = resource["id_0"]
-    identifier = resource["uri"].split('/repositories/'+repository+'/resources/',1)[1]
+    identifier = re.split('^/repositories/[1-9]*/resources/',resource["uri"])[1]
     if resource["publish"] and not ('LI' in resourceID):
         exportEAD(resourceID, identifier, headers)
         uriExportList.append(resource["uri"])
@@ -155,10 +155,10 @@ def findUpdatedResources(lastExport):
     headers = authenticate()
     resourceIds = requests.get(baseURL + '/repositories/'+repository+'/resources?all_ids=true&modified_since='+str(lastExport), headers=headers)
     logging.warning('*** Checking resources ***')
-    for resourceID in resourceIds.json():
-        if not requests.get(baseURL + '/repositories/'+repository+'/resources/' + str(resourceID), headers=headers):
+    for r in resourceIds.json():
+        if not requests.get(baseURL + '/repositories/'+repository+'/resources/' + str(r), headers=headers):
             headers = authenticate()
-        resource = (requests.get(baseURL + '/repositories/'+repository+'/resources/' + str(resourceID), headers=headers)).json()
+        resource = (requests.get(baseURL + '/repositories/'+repository+'/resources/' + str(r), headers=headers)).json()
         handleResource(resource, headers)
 
 # Looks for updated components
@@ -166,10 +166,10 @@ def findUpdatedObjects(lastExport):
     headers = authenticate()
     archival_objects = requests.get(baseURL + '/repositories/'+repository+'/archival_objects?all_ids=true&modified_since='+str(lastExport), headers=headers)
     logging.warning('*** Checking archival objects ***')
-    for objectID in archival_objects.json():
-        if not requests.get(baseURL + '/repositories/'+repository+'/archival_objects/'+str(objectID), headers=headers):
+    for a in archival_objects.json():
+        if not requests.get(baseURL + '/repositories/'+repository+'/archival_objects/'+str(a), headers=headers):
             headers = authenticate()
-        archival_object = requests.get(baseURL + '/repositories/'+repository+'/archival_objects/'+str(objectID), headers=headers).json()
+        archival_object = requests.get(baseURL + '/repositories/'+repository+'/archival_objects/'+str(a), headers=headers).json()
         resource = (requests.get(baseURL +archival_object["resource"]["ref"], headers=headers)).json()
         if not resource["uri"] in uriExportList and not resource["uri"] in uriDeleteList:
             handleResource(resource, headers)
@@ -179,10 +179,10 @@ def findUpdatedDigitalObjects(lastExport):
     headers = authenticate()
     doIds = requests.get(baseURL + '/repositories/'+repository+'/digital_objects?all_ids=true&modified_since='+str(lastExport), headers=headers)
     logging.warning('*** Checking digital objects ***')
-    for doID in doIds.json():
-        if not requests.get(baseURL + '/repositories/'+repository+'/digital_objects/' + str(doID), headers=headers):
+    for d in doIds.json():
+        if not requests.get(baseURL + '/repositories/'+repository+'/digital_objects/' + str(d), headers=headers):
             headers = authenticate()
-        digital_object = (requests.get(baseURL + '/repositories/'+repository+'/digital_objects/' + str(doID), headers=headers)).json()
+        digital_object = (requests.get(baseURL + '/repositories/'+repository+'/digital_objects/' + str(d), headers=headers)).json()
         handleDigitalObject(digital_object, headers)
 
 # Looks for digital objects associated with updated resource records
@@ -190,10 +190,10 @@ def findAssociatedDigitalObjects():
     headers = authenticate()
     doIds = requests.get(baseURL + '/repositories/'+repository+'/digital_objects?all_ids=true', headers=headers)
     logging.warning('*** Checking associated digital objects ***')
-    for doID in doIds.json():
-        if not requests.get(baseURL + '/repositories/'+repository+'/digital_objects/' + str(doID), headers=headers):
+    for d in doIds.json():
+        if not requests.get(baseURL + '/repositories/'+repository+'/digital_objects/' + str(d), headers=headers):
             headers = authenticate()
-        digital_object = (requests.get(baseURL + '/repositories/'+repository+'/digital_objects/' + str(doID), headers=headers)).json()
+        digital_object = (requests.get(baseURL + '/repositories/'+repository+'/digital_objects/' + str(d), headers=headers)).json()
         handleDigitalObject(digital_object, headers)
 
 #run script to version using git
