@@ -13,9 +13,34 @@ These scripts export updated data from ArchivesSpace and version all data in git
         git clone git@github.com:RockefellerArchiveCenter/asExportIncremental.git
 
     or just download the zip file of this repo
-2.  Update variables in asExportIncremental.py
-    ArchivesSpace variables, including URL, repository, username and password
-    Export destinations: point these to where you want your exported data to go
+2.  Create a local configuration file at `local_settings.cfg` and add variables. A sample file looks like this:
+
+````
+      [ArchivesSpace]
+      baseURL:http://localhost:8089
+      repository:2
+      user:admin
+      password:admin
+
+      [EADexport]
+      exportUnpublished:false
+      exportDaos:true
+      exportNumbered:false
+      exportPdf:false
+
+      [LastExport]
+      filepath:lastExport.pickle
+
+      [PDFexport]
+      filepath:ead2pdf.jar
+
+      [Logging]
+      filename:log.txt
+      format: %(asctime)s %(message)s
+      datefmt: %m/%d/%Y %I:%M:%S %p
+      level: WARNING
+````
+      
 3.  Set up repositories
     Install [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
     [Create local git repositories](https://git-scm.com/book/en/v2/Git-Basics-Getting-a-Git-Repository) at your data export locations
