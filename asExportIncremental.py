@@ -39,19 +39,22 @@ def makeDestinations():
 
 # authenticates the session
 def authenticate():
-    auth = requests.post(baseURL + '/users/'+user+'/login?password='+password).json()
-    token = {'X-ArchivesSpace-Session':auth["session"]}
-    return token
+    try:
+        auth = requests.post(baseURL + '/users/'+user+'/login?password='+password).json()
+        token = {'X-ArchivesSpace-Session':auth["session"]}
+        return token
+    except:
+        logging.error('Authentication failed!')
 
 # gets time of last export
 def handleTime():
-    # last export time
+    # last export time in Unix epoch time, for example 1439563523
     if os.path.isfile(lastExportFilepath):
         with open(lastExportFilepath, 'rb') as pickle_handle:
             lastExport = str(pickle.load(pickle_handle))
     else:
         lastExport = 0
-    # store the current time
+    # store the current time in Unix epoch time, for example 1439563523
     with open(lastExportFilepath, 'wb') as pickle_handle:
         pickle.dump(int(time.time()), pickle_handle)
     return lastExport
@@ -121,7 +124,7 @@ def removeMETS(doID):
 def handleResource(resource, headers):
     resourceID = resource["id_0"]
     identifier = resource["uri"].split('/repositories/'+repository+'/resources/',1)[1]
-    if resource["publish"] and not 'LI' in resourceID:
+    if resource["publish"] and not ('LI' in resourceID):
         exportEAD(resourceID, identifier, headers)
         uriExportList.append(resource["uri"])
     else:
@@ -167,6 +170,7 @@ def checkObjects(lastExport):
         if not resource["uri"] in uriExportList and not resource["uri"] in uriDeleteList:
             handleResource(resource, headers)
 
+# Looks for updated digital objects
 def checkDigital(lastExport):
     headers = authenticate()
     doIds = requests.get(baseURL + '/repositories/'+repository+'/digital_objects?all_ids=true&modified_since='+str(lastExport), headers=headers)
@@ -177,6 +181,7 @@ def checkDigital(lastExport):
         digital_object = (requests.get(baseURL + '/repositories/'+repository+'/digital_objects/' + str(id), headers=headers)).json()
         handleDigitalObject(digital_object, headers)
 
+# Looks for digital objects associated with updated resource records
 def associatedDigital():
     headers = authenticate()
     doIds = requests.get(baseURL + '/repositories/'+repository+'/digital_objects?all_ids=true', headers=headers)
@@ -204,9 +209,9 @@ def main():
     checkDigital(lastExport)
     if len(uriExportList) > 0 or len(uriDeleteList) > 0:
         associatedDigital()
-        versionFiles()
     else:
         logging.warning('*** Nothing was exported ***')
+    versionFiles()
     logging.warning('*** Export completed ***')
 
 main()
