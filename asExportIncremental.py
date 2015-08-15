@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, requests, json, sys, time, pickle, logging, ConfigParser, re
+import os, requests, json, sys, time, pickle, logging, ConfigParser, re, subprocess
 from lxml import etree
 
 # local config file, containing variables
@@ -48,10 +48,10 @@ def authenticate():
     except ConnectionError:
         logging.error('Authentication failed!')
 
-# logs out non-expiring session (not yet in AS core)
+# logs out non-expiring session (not yet in AS core, so commented out)
 def logout(headers):
     requests.post('{baseURL}/logout'.format(**dictionary), headers=headers)
-    logging.warning('You have been logged out')
+    logging.warning('You have been logged out of your session')
 
 # gets time of last export
 def readTime():
@@ -69,7 +69,7 @@ def updateTime(exportStartTime):
         pickle.dump(exportStartTime, pickle_handle)
 
 # formats XML files
-def prettyPrintXml(filePath, resourceID, identifier):
+def prettyPrintXml(filePath, resourceID):
     assert filePath is not None
     parser = etree.XMLParser(resolve_entities=False, strip_cdata=False, remove_blank_text=True)
     try:
@@ -79,13 +79,13 @@ def prettyPrintXml(filePath, resourceID, identifier):
         createPDF(resourceID)
     except:
         logging.warning('%s is invalid and will be removed', resourceID)
-        removeEAD(resourceID, identifier)
+        #removeEAD(resourceID)
 
 # creates pdf from EAD
 def createPDF(resourceID):
     if not os.path.exists(os.path.join(PDFdestination,resourceID)):
         os.makedirs(os.path.join(PDFdestination,resourceID))
-    os.system("java -jar "+PDFConvertFilepath+" "+os.path.join(EADdestination, resourceID, resourceID+'.xml')+" "+os.path.join(PDFdestination, resourceID, resourceID+'.pdf'))
+    subprocess.call(['java', '-jar', PDFConvertFilepath, os.path.join(EADdestination, resourceID, resourceID+'.xml'), os.path.join(PDFdestination, resourceID, resourceID+'.pdf')])
     logging.warning('%s.pdf created at %s', resourceID, os.path.join(PDFdestination,resourceID))
 
 # Exports EAD file
@@ -99,7 +99,7 @@ def exportEAD(resourceID, identifier, headers):
     f.close
     logging.warning('%s.xml exported to %s', resourceID, os.path.join(EADdestination,resourceID))
     #validate here
-    prettyPrintXml(os.path.join(EADdestination,resourceID,resourceID+'.xml'), resourceID, identifier)
+    prettyPrintXml(os.path.join(EADdestination,resourceID,resourceID+'.xml'), resourceID)
 
 # Exports METS file
 def exportMETS(doID, headers):
