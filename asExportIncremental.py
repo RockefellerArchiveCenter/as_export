@@ -91,7 +91,7 @@ def exportEAD(resourceID, identifier, headers):
     f.close
     logging.warning('%s exported to %s', resourceID, EADdestination)
     #validate here
-    prettyPrintXml(EADdestination+resourceID+'/'+resourceID+'.xml', resourceID, identifier)
+    prettyPrintXml(EADdestination+resourceID+'/'+resourceID+'.xml', resourceID)
 
 # Exports METS file
 def exportMETS(doID, headers):
