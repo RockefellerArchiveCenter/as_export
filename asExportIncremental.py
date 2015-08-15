@@ -61,7 +61,7 @@ def updateTime():
         pickle.dump(exportStartTime, pickle_handle)
 
 # formats XML files
-def prettyPrintXml(filePath, resourceID, id):
+def prettyPrintXml(filePath, resourceID, identifier):
     assert filePath is not None
     parser = etree.XMLParser(resolve_entities=False, strip_cdata=False, remove_blank_text=True)
     try:
@@ -70,8 +70,8 @@ def prettyPrintXml(filePath, resourceID, id):
         document.write(filePath, pretty_print=True, encoding='utf-8')
         createPDF(resourceID)
     except:
-        logging.warning('%s is invalid and should be removed', resourceID)
-        #removeEAD(resourceID, id)
+        logging.warning('%s is invalid and will be removed', resourceID)
+        removeEAD(resourceID, identifier)
 
 # creates pdf from EAD
 def createPDF(resourceID):
