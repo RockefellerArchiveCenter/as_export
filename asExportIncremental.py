@@ -39,11 +39,15 @@ def makeDestinations():
 # authenticates the session
 def authenticate():
     try:
-        auth = requests.post('{baseURL}/users/{user}/login?password={password}'.format(**dictionary)).json()
+        auth = requests.post('{baseURL}/users/{user}/login?password={password}&expiring=false'.format(**dictionary)).json()
         token = {'X-ArchivesSpace-Session':auth["session"]}
         return token
     except ConnectionError:
         logging.error('Authentication failed!')
+
+def logout():
+    requests.post('{baseURL}/logout'.format(**dictionary), headers=headers)
+    logging.warning('You have been logged out')
 
 # gets time of last export
 def readTime():
@@ -91,7 +95,7 @@ def exportEAD(resourceID, identifier, headers):
     f.close
     logging.warning('%s exported to %s', resourceID, EADdestination)
     #validate here
-    prettyPrintXml(EADdestination+resourceID+'/'+resourceID+'.xml', resourceID)
+    prettyPrintXml(EADdestination+resourceID+'/'+resourceID+'.xml', resourceID, identifier)
 
 # Exports METS file
 def exportMETS(doID, headers):
@@ -148,48 +152,36 @@ def handleDigitalObject(digital_object, headers):
         removeMETS(doID)
 
 # Looks for updated resources
-def findUpdatedResources(lastExport):
-    headers = authenticate()
+def findUpdatedResources(lastExport, headers):
     resourceIds = requests.get(repositoryBaseURL+'resources?all_ids=true&modified_since='+str(lastExport), headers=headers)
     logging.warning('*** Checking resources ***')
     for r in resourceIds.json():
-        if not requests.get(repositoryBaseURL+'resources/' + str(r), headers=headers):
-            headers = authenticate()
         resource = (requests.get(repositoryBaseURL+'resources/' + str(r), headers=headers)).json()
         handleResource(resource, headers)
 
 # Looks for updated components
-def findUpdatedObjects(lastExport):
-    headers = authenticate()
+def findUpdatedObjects(lastExport, headers):
     archival_objects = requests.get(repositoryBaseURL+'archival_objects?all_ids=true&modified_since='+str(lastExport), headers=headers)
     logging.warning('*** Checking archival objects ***')
     for a in archival_objects.json():
-        if not requests.get(repositoryBaseURL+'archival_objects/'+str(a), headers=headers):
-            headers = authenticate()
         archival_object = requests.get(repositoryBaseURL+'archival_objects/'+str(a), headers=headers).json()
         resource = (requests.get(baseURL +archival_object["resource"]["ref"], headers=headers)).json()
         if not resource["uri"] in uriExportList and not resource["uri"] in uriDeleteList:
             handleResource(resource, headers)
 
 # Looks for updated digital objects
-def findUpdatedDigitalObjects(lastExport):
-    headers = authenticate()
+def findUpdatedDigitalObjects(lastExport, headers):
     doIds = requests.get(repositoryBaseURL+'digital_objects?all_ids=true&modified_since='.format(**dictionary)+str(lastExport), headers=headers)
     logging.warning('*** Checking digital objects ***')
     for d in doIds.json():
-        if not requests.get(repositoryBaseURL+'digital_objects/' + str(d), headers=headers):
-            headers = authenticate()
         digital_object = (requests.get(repositoryBaseURL+'digital_objects/' + str(d), headers=headers)).json()
         handleDigitalObject(digital_object, headers)
 
 # Looks for digital objects associated with updated resource records
-def findAssociatedDigitalObjects():
-    headers = authenticate()
+def findAssociatedDigitalObjects(headers):
     doIds = requests.get(repositoryBaseURL+'digital_objects?all_ids=true', headers=headers)
     logging.warning('*** Checking associated digital objects ***')
     for d in doIds.json():
-        if not requests.get(repositoryBaseURL+'digital_objects/' + str(d), headers=headers):
-            headers = authenticate()
         digital_object = (requests.get(repositoryBaseURL+'digital_objects/' + str(d), headers=headers)).json()
         handleDigitalObject(digital_object, headers)
 
@@ -206,15 +198,17 @@ def main():
     exportStartTime = int(time.time())
     lastExport = readTime()
     makeDestinations()
-    findUpdatedResources(lastExport)
-    findUpdatedObjects(lastExport)
-    findUpdatedDigitalObjects(lastExport)
+    headers = authenticate()
+    findUpdatedResources(lastExport, headers)
+    findUpdatedObjects(lastExport, headers)
+    findUpdatedDigitalObjects(lastExport, headers)
     if len(uriExportList) > 0 or len(uriDeleteList) > 0:
-        findAssociatedDigitalObjects()
+        findAssociatedDigitalObjects(headers)
     else:
         logging.warning('*** Nothing was exported ***')
     #versionFiles()
     logging.warning('*** Export completed ***')
+    logout()
     updateTime()
 
 main()
