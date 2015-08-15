@@ -8,6 +8,7 @@ config = ConfigParser.ConfigParser()
 config.read('local_settings.cfg')
 
 dictionary = {'baseURL': config.get('ArchivesSpace', 'baseURL'), 'repository':config.get('ArchivesSpace', 'repository'), 'user': config.get('ArchivesSpace', 'user'), 'password': config.get('ArchivesSpace', 'password')}
+baseURL = '{baseURL}'.format(**dictionary)
 repositoryBaseURL = '{baseURL}/repositories/{repository}/'.format(**dictionary)
 
 lastExportFilepath = config.get('LastExport', 'filepath')
@@ -16,19 +17,21 @@ exportUnpublished = config.get('EADexport', 'exportUnpublished')
 exportDaos = config.get('EADexport', 'exportDaos')
 exportNumbered = config.get('EADexport', 'exportNumbered')
 exportPdf = config.get('EADexport', 'exportPdf')
-# URI lists (to be populated by URIs of exported or deleted resource records)
+# URI lists (to be populated by URIs of exported or deleted records)
 uriExportList = []
 uriDeleteList = []
+doExportList = []
+doDeleteList = []
 # PDF export utility filePath
 PDFConvertFilepath = config.get('PDFexport', 'filepath')
 # logging configs
 logging.basicConfig(filename=config.get('Logging', 'filename'),format=config.get('Logging', 'format', 1), datefmt=config.get('Logging', 'datefmt', 1), level=config.get('Logging', 'level', 0))
 
-# export destinations, should end with a trailing slash
-dataDestination = '/Users/harnold/Desktop/data/'
-EADdestination = dataDestination + 'ead/'
-METSdestination = dataDestination + 'mets/'
-PDFdestination = '/Users/harnold/Desktop/pdf/'
+# export destinations, os.path.sep makes these absolute URLs
+dataDestination = os.path.join(os.path.sep,'Users','harnold','Desktop','data')
+EADdestination = os.path.join(dataDestination,'ead')
+METSdestination = os.path.join(dataDestination,'mets')
+PDFdestination = os.path.join(os.path.sep,'Users','harnold','Desktop','pdf')
 
 def makeDestinations():
     destinations = [EADdestination, PDFdestination, METSdestination]
@@ -45,7 +48,8 @@ def authenticate():
     except ConnectionError:
         logging.error('Authentication failed!')
 
-def logout():
+# logs out non-expiring session (not yet in AS core)
+def logout(headers):
     requests.post('{baseURL}/logout'.format(**dictionary), headers=headers)
     logging.warning('You have been logged out')
 
@@ -60,7 +64,7 @@ def readTime():
     return lastExport
 
 # store the current time in Unix epoch time, for example 1439563523
-def updateTime():
+def updateTime(exportStartTime):
     with open(lastExportFilepath, 'wb') as pickle_handle:
         pickle.dump(exportStartTime, pickle_handle)
 
@@ -79,49 +83,49 @@ def prettyPrintXml(filePath, resourceID, identifier):
 
 # creates pdf from EAD
 def createPDF(resourceID):
-    if not os.path.exists(PDFdestination+resourceID):
-        os.makedirs(PDFdestination+resourceID)
-    os.system("java -jar "+PDFConvertFilepath+" "+EADdestination+resourceID+'/'+resourceID+'.xml'+" "+PDFdestination+resourceID+'/'+resourceID+'.pdf')
-    logging.warning('%s%s/%s.pdf created', PDFdestination, resourceID, resourceID)
+    if not os.path.exists(os.path.join(PDFdestination,resourceID)):
+        os.makedirs(os.path.join(PDFdestination,resourceID))
+    os.system("java -jar "+PDFConvertFilepath+" "+os.path.join(EADdestination, resourceID, resourceID+'.xml')+" "+os.path.join(PDFdestination, resourceID, resourceID+'.pdf'))
+    logging.warning('%s.pdf created at %s', resourceID, os.path.join(PDFdestination,resourceID))
 
 # Exports EAD file
 def exportEAD(resourceID, identifier, headers):
     ead = requests.get(repositoryBaseURL+'resource_descriptions/'+str(identifier)+'.xml?include_unpublished={exportUnpublished}&include_daos={exportDaos}&numbered_cs={exportNumbered}&print_pdf={exportPdf}'.format(exportUnpublished=exportUnpublished, exportDaos=exportDaos, exportNumbered=exportNumbered, exportPdf=exportPdf), headers=headers, stream=True)
-    if not os.path.exists(EADdestination+resourceID+'/'):
-        os.makedirs(EADdestination + resourceID+'/')
-    with open(EADdestination+resourceID+'/'+resourceID+'.xml', 'wb') as f:
+    if not os.path.exists(os.path.join(EADdestination,resourceID)):
+        os.makedirs(os.path.join(EADdestination,resourceID))
+    with open(os.path.join(EADdestination,resourceID,resourceID+'.xml'), 'wb') as f:
         for chunk in ead.iter_content(10240):
             f.write(chunk)
     f.close
-    logging.warning('%s exported to %s', resourceID, EADdestination)
+    logging.warning('%s.xml exported to %s', resourceID, os.path.join(EADdestination,resourceID))
     #validate here
-    prettyPrintXml(EADdestination+resourceID+'/'+resourceID+'.xml', resourceID, identifier)
+    prettyPrintXml(os.path.join(EADdestination,resourceID,resourceID+'.xml'), resourceID, identifier)
 
 # Exports METS file
 def exportMETS(doID, headers):
     mets = requests.get(repositoryBaseURL+'digital_objects/mets/'+str(doID)+'.xml', headers=headers).text
-    if not os.path.exists(METSdestination+doID+'/'):
-        os.makedirs(METSdestination+doID+'/')
-    f = open(METSdestination+doID+'/'+doID+'.xml', 'w')
+    if not os.path.exists(os.path.join(METSdestination,doID)):
+        os.makedirs(os.path.join(METSdestination,doID))
+    f = open(os.path.join(METSdestination,doID,doID+'.xml'), 'w')
     f.write(mets.encode('utf-8'))
     f.close
-    logging.warning('%s exported to %s', doID, METSdestination)
+    logging.warning('%s.xml exported to %s', doID, os.path.join(METSdestination,doID))
     #validate here
 
 # Deletes EAD file if it exists
 def removeEAD(resourceID):
-    if os.path.isfile(EADdestination+resourceID+'/'+resourceID+'.xml'):
-        os.remove(EADdestination+resourceID+'/'+resourceID+'.xml')
-        os.rmdir(EADdestination+resourceID+'/')
+    if os.path.isfile(os.path.join(EADdestination,resourceID,resourceID+'.xml')):
+        os.remove(os.path.join(EADdestination,resourceID,resourceID+'.xml'))
+        os.rmdir(os.path.join(EADdestination,resourceID))
         logging.warning('%s.xml deleted from %s%s', resourceID, EADdestination, resourceID)
     else:
-        logging.warning('%s.xml does not exist, no need to delete', resourceID)
+        logging.warning('%s.xml does not already exist, no need to delete', resourceID)
 
 # Deletes METS file if it exists
 def removeMETS(doID):
-    if os.path.isfile(METSdestination+doID+'/'+doID+'.xml'):
-        os.remove(METSdestination+doID+'/'+doID+'.xml')
-        os.rmdir(METSdestination+doID+'/')
+    if os.path.isfile(os.path.join(METSdestination,doID,doID+'.xml')):
+        os.remove(os.path.join(METSdestination,doID,doID+'.xml'))
+        os.rmdir(os.path.join(METSdestination,doID))
         logging.warning('%s.xml deleted from %s%s', doID, METSdestination, doID)
     else:
         logging.warning('%s.xml does not exist, no need to delete', doID)
@@ -138,7 +142,18 @@ def handleResource(resource, headers):
 
 def handleDigitalObject(digital_object, headers):
     doID = digital_object["digital_object_id"]
-    if digital_object["publish"]:
+    try:
+        digital_object["publish"]
+        exportMETS(doID, headers)
+        doExportList.append(digital_object["uri"])
+    except:
+        removeMETS(doID)
+        doDeleteList.append(digital_object["uri"])
+
+def handleAssociatedDigitalObject(digital_object, headers):
+    doID = digital_object["digital_object_id"]
+    try:
+        digital_object["publish"]
         component = (requests.get(baseURL + digital_object["linked_instances"][0]["ref"], headers=headers)).json()
         if component["jsonmodel_type"] == 'resource':
             resource = digital_object["linked_instances"][0]["ref"]
@@ -146,10 +161,13 @@ def handleDigitalObject(digital_object, headers):
             resource = component["resource"]["ref"]
         if resource in uriExportList:
             exportMETS(doID, headers)
+            doExportList.append(digital_object["uri"])
         elif resource in uriDeleteList:
             removeMETS(doID)
-    else:
+            doDeleteList.append(digital_object["uri"])
+    except:
         removeMETS(doID)
+        doDeleteList.append(digital_object["uri"])
 
 # Looks for updated resources
 def findUpdatedResources(lastExport, headers):
@@ -165,7 +183,7 @@ def findUpdatedObjects(lastExport, headers):
     logging.warning('*** Checking archival objects ***')
     for a in archival_objects.json():
         archival_object = requests.get(repositoryBaseURL+'archival_objects/'+str(a), headers=headers).json()
-        resource = (requests.get(baseURL +archival_object["resource"]["ref"], headers=headers)).json()
+        resource = (requests.get(baseURL+archival_object["resource"]["ref"], headers=headers)).json()
         if not resource["uri"] in uriExportList and not resource["uri"] in uriDeleteList:
             handleResource(resource, headers)
 
@@ -183,7 +201,7 @@ def findAssociatedDigitalObjects(headers):
     logging.warning('*** Checking associated digital objects ***')
     for d in doIds.json():
         digital_object = (requests.get(repositoryBaseURL+'digital_objects/' + str(d), headers=headers)).json()
-        handleDigitalObject(digital_object, headers)
+        handleAssociatedDigitalObject(digital_object, headers)
 
 #run script to version using git
 def versionFiles():
@@ -202,13 +220,11 @@ def main():
     findUpdatedResources(lastExport, headers)
     findUpdatedObjects(lastExport, headers)
     findUpdatedDigitalObjects(lastExport, headers)
-    if len(uriExportList) > 0 or len(uriDeleteList) > 0:
+    if len(uriExportList) > 0 or len(uriDeleteList):
         findAssociatedDigitalObjects(headers)
-    else:
-        logging.warning('*** Nothing was exported ***')
     #versionFiles()
     logging.warning('*** Export completed ***')
-    logout()
-    updateTime()
+    #logout(headers)
+    updateTime(exportStartTime)
 
 main()
