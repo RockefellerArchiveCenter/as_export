@@ -2,6 +2,8 @@
 
 import os, requests, json, sys, time, pickle, logging, ConfigParser, re, subprocess
 from lxml import etree
+from requests_toolbelt import exceptions
+from requests_toolbelt.downloadutils import stream
 
 # local config file, containing variables
 config = ConfigParser.ConfigParser()
@@ -92,26 +94,31 @@ def createPDF(resourceID):
 
 # Exports EAD file
 def exportEAD(resourceID, identifier, headers):
-    ead = requests.get(repositoryBaseURL+'resource_descriptions/'+str(identifier)+'.xml?include_unpublished={exportUnpublished}&include_daos={exportDaos}&numbered_cs={exportNumbered}&print_pdf={exportPdf}'.format(exportUnpublished=exportUnpublished, exportDaos=exportDaos, exportNumbered=exportNumbered, exportPdf=exportPdf), headers=headers, stream=True)
     if not os.path.exists(os.path.join(EADdestination,resourceID)):
         os.makedirs(os.path.join(EADdestination,resourceID))
-    with open(os.path.join(EADdestination,resourceID,resourceID+'.xml'), 'wb') as f:
-        for chunk in ead.iter_content(10240):
-            f.write(chunk)
-    f.close
-    logging.info('%s.xml exported to %s', resourceID, os.path.join(EADdestination,resourceID))
+    try:
+        with open(os.path.join(EADdestination,resourceID,resourceID+'.xml'), 'wb') as fd:
+            ead = requests.get(repositoryBaseURL+'resource_descriptions/'+str(identifier)+'.xml?include_unpublished={exportUnpublished}&include_daos={exportDaos}&numbered_cs={exportNumbered}&print_pdf={exportPdf}'.format(exportUnpublished=exportUnpublished, exportDaos=exportDaos, exportNumbered=exportNumbered, exportPdf=exportPdf), headers=headers, stream=True)
+            filename = stream.stream_response_to_file(ead, path=fd)
+            fd.close
+            logging.info('%s.xml exported to %s', resourceID, os.path.join(EADdestination,resourceID))
+    except exceptions.StreamingError as e:
+        logging.warning(e.message)
     #validate here
     prettyPrintXml(os.path.join(EADdestination,resourceID,resourceID+'.xml'), resourceID)
 
 # Exports METS file
-def exportMETS(doID, headers):
-    mets = requests.get(repositoryBaseURL+'digital_objects/mets/'+str(doID)+'.xml', headers=headers).text
+def exportMETS(doID, d, headers):
     if not os.path.exists(os.path.join(METSdestination,doID)):
         os.makedirs(os.path.join(METSdestination,doID))
-    f = open(os.path.join(METSdestination,doID,doID+'.xml'), 'w')
-    f.write(mets.encode('utf-8'))
-    f.close
-    logging.info('%s.xml exported to %s', doID, os.path.join(METSdestination,doID))
+    try:
+        with open(os.path.join(METSdestination,doID,doID+'.xml'), 'wb') as fd:
+            mets = requests.get(repositoryBaseURL+'digital_objects/mets/'+str(d)+'.xml', headers=headers, stream=True)
+            filename = stream.stream_response_to_file(mets, path=fd)
+            fd.close
+            logging.info('%s.xml exported to %s', doID, os.path.join(METSdestination,doID))
+    except exceptions.StreamingError as e:
+        logging.warning(e.message)
     #validate here
 
 # Deletes EAD file if it exists
@@ -142,17 +149,17 @@ def handleResource(resource, headers):
         removeEAD(resourceID)
         uriDeleteList.append(resource["uri"])
 
-def handleDigitalObject(digital_object, headers):
+def handleDigitalObject(digital_object, d, headers):
     doID = digital_object["digital_object_id"]
     try:
         digital_object["publish"]
-        exportMETS(doID, headers)
+        exportMETS(doID, d, headers)
         doExportList.append(digital_object["uri"])
     except:
         removeMETS(doID)
         doDeleteList.append(digital_object["uri"])
 
-def handleAssociatedDigitalObject(digital_object, headers):
+def handleAssociatedDigitalObject(digital_object, d, headers):
     doID = digital_object["digital_object_id"]
     try:
         digital_object["publish"]
@@ -162,7 +169,7 @@ def handleAssociatedDigitalObject(digital_object, headers):
         else:
             resource = component["resource"]["ref"]
         if resource in uriExportList:
-            exportMETS(doID, headers)
+            exportMETS(doID, d, headers)
             doExportList.append(digital_object["uri"])
         elif resource in uriDeleteList:
             removeMETS(doID)
@@ -195,7 +202,7 @@ def findUpdatedDigitalObjects(lastExport, headers):
     logging.info('*** Checking digital objects ***')
     for d in doIds.json():
         digital_object = (requests.get(repositoryBaseURL+'digital_objects/' + str(d), headers=headers)).json()
-        handleDigitalObject(digital_object, headers)
+        handleDigitalObject(digital_object, d, headers)
 
 # Looks for digital objects associated with updated resource records
 def findAssociatedDigitalObjects(headers):

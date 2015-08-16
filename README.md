@@ -5,6 +5,7 @@ These scripts export updated data from ArchivesSpace and version all data in git
 * [Python](https://www.python.org/) - tested on 2.7 but will probably work with other versions
 * [lxml](http://lxml.de/)
 * [requests](http://www.python-requests.org/en/latest/)
+* [requests_toolbelt](https://github.com/sigmavirus24/requests-toolbelt)
 * [git](https://git-scm.com/)
 
 ##Getting Started
@@ -40,7 +41,7 @@ These scripts export updated data from ArchivesSpace and version all data in git
       datefmt: %m/%d/%Y %I:%M:%S %p
       level: WARNING
 ````
-      
+
 3.  Set up repositories
     Install [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
     [Create local git repositories](https://git-scm.com/book/en/v2/Git-Basics-Getting-a-Git-Repository) at your data export locations
