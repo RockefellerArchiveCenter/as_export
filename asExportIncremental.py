@@ -26,6 +26,8 @@ doDeleteList = []
 PDFConvertFilepath = config.get('PDFexport', 'filepath')
 # Logging configuration
 logging.basicConfig(filename=config.get('Logging', 'filename'),format=config.get('Logging', 'format', 1), datefmt=config.get('Logging', 'datefmt', 1), level=config.get('Logging', 'level', 0))
+# Sets logging of requests to WARNING to avoid unneccessary info
+logging.getLogger("requests").setLevel(logging.WARNING)
 
 # export destinations, os.path.sep makes these absolute URLs
 dataDestination = os.path.join(os.path.sep,'Users','harnold','Desktop','data')
@@ -51,7 +53,7 @@ def authenticate():
 # logs out non-expiring session (not yet in AS core, so commented out)
 def logout(headers):
     requests.post('{baseURL}/logout'.format(**dictionary), headers=headers)
-    logging.warning('You have been logged out of your session')
+    logging.info('You have been logged out of your session')
 
 # gets time of last export
 def readTime():
@@ -86,7 +88,7 @@ def createPDF(resourceID):
     if not os.path.exists(os.path.join(PDFdestination,resourceID)):
         os.makedirs(os.path.join(PDFdestination,resourceID))
     subprocess.call(['java', '-jar', PDFConvertFilepath, os.path.join(EADdestination, resourceID, resourceID+'.xml'), os.path.join(PDFdestination, resourceID, resourceID+'.pdf')])
-    logging.warning('%s.pdf created at %s', resourceID, os.path.join(PDFdestination,resourceID))
+    logging.info('%s.pdf created at %s', resourceID, os.path.join(PDFdestination,resourceID))
 
 # Exports EAD file
 def exportEAD(resourceID, identifier, headers):
@@ -97,7 +99,7 @@ def exportEAD(resourceID, identifier, headers):
         for chunk in ead.iter_content(10240):
             f.write(chunk)
     f.close
-    logging.warning('%s.xml exported to %s', resourceID, os.path.join(EADdestination,resourceID))
+    logging.info('%s.xml exported to %s', resourceID, os.path.join(EADdestination,resourceID))
     #validate here
     prettyPrintXml(os.path.join(EADdestination,resourceID,resourceID+'.xml'), resourceID)
 
@@ -109,7 +111,7 @@ def exportMETS(doID, headers):
     f = open(os.path.join(METSdestination,doID,doID+'.xml'), 'w')
     f.write(mets.encode('utf-8'))
     f.close
-    logging.warning('%s.xml exported to %s', doID, os.path.join(METSdestination,doID))
+    logging.info('%s.xml exported to %s', doID, os.path.join(METSdestination,doID))
     #validate here
 
 # Deletes EAD file if it exists
@@ -117,18 +119,18 @@ def removeEAD(resourceID):
     if os.path.isfile(os.path.join(EADdestination,resourceID,resourceID+'.xml')):
         os.remove(os.path.join(EADdestination,resourceID,resourceID+'.xml'))
         os.rmdir(os.path.join(EADdestination,resourceID))
-        logging.warning('%s.xml deleted from %s%s', resourceID, EADdestination, resourceID)
+        logging.info('%s.xml deleted from %s%s', resourceID, EADdestination, resourceID)
     else:
-        logging.warning('%s.xml does not already exist, no need to delete', resourceID)
+        logging.info('%s.xml does not already exist, no need to delete', resourceID)
 
 # Deletes METS file if it exists
 def removeMETS(doID):
     if os.path.isfile(os.path.join(METSdestination,doID,doID+'.xml')):
         os.remove(os.path.join(METSdestination,doID,doID+'.xml'))
         os.rmdir(os.path.join(METSdestination,doID))
-        logging.warning('%s.xml deleted from %s%s', doID, METSdestination, doID)
+        logging.info('%s.xml deleted from %s%s', doID, METSdestination, doID)
     else:
-        logging.warning('%s.xml does not exist, no need to delete', doID)
+        logging.info('%s.xml does not exist, no need to delete', doID)
 
 def handleResource(resource, headers):
     resourceID = resource["id_0"]
@@ -172,7 +174,7 @@ def handleAssociatedDigitalObject(digital_object, headers):
 # Looks for updated resources
 def findUpdatedResources(lastExport, headers):
     resourceIds = requests.get(repositoryBaseURL+'resources?all_ids=true&modified_since='+str(lastExport), headers=headers)
-    logging.warning('*** Checking resources ***')
+    logging.info('*** Checking resources ***')
     for r in resourceIds.json():
         resource = (requests.get(repositoryBaseURL+'resources/' + str(r), headers=headers)).json()
         handleResource(resource, headers)
@@ -180,7 +182,7 @@ def findUpdatedResources(lastExport, headers):
 # Looks for updated components
 def findUpdatedObjects(lastExport, headers):
     archival_objects = requests.get(repositoryBaseURL+'archival_objects?all_ids=true&modified_since='+str(lastExport), headers=headers)
-    logging.warning('*** Checking archival objects ***')
+    logging.info('*** Checking archival objects ***')
     for a in archival_objects.json():
         archival_object = requests.get(repositoryBaseURL+'archival_objects/'+str(a), headers=headers).json()
         resource = (requests.get(baseURL+archival_object["resource"]["ref"], headers=headers)).json()
@@ -190,7 +192,7 @@ def findUpdatedObjects(lastExport, headers):
 # Looks for updated digital objects
 def findUpdatedDigitalObjects(lastExport, headers):
     doIds = requests.get(repositoryBaseURL+'digital_objects?all_ids=true&modified_since='.format(**dictionary)+str(lastExport), headers=headers)
-    logging.warning('*** Checking digital objects ***')
+    logging.info('*** Checking digital objects ***')
     for d in doIds.json():
         digital_object = (requests.get(repositoryBaseURL+'digital_objects/' + str(d), headers=headers)).json()
         handleDigitalObject(digital_object, headers)
@@ -198,21 +200,21 @@ def findUpdatedDigitalObjects(lastExport, headers):
 # Looks for digital objects associated with updated resource records
 def findAssociatedDigitalObjects(headers):
     doIds = requests.get(repositoryBaseURL+'digital_objects?all_ids=true', headers=headers)
-    logging.warning('*** Checking associated digital objects ***')
+    logging.info('*** Checking associated digital objects ***')
     for d in doIds.json():
         digital_object = (requests.get(repositoryBaseURL+'digital_objects/' + str(d), headers=headers)).json()
         handleAssociatedDigitalObject(digital_object, headers)
 
 #run script to version using git
 def versionFiles():
-    logging.warning('*** Versioning files and pushing to Github ***')
+    logging.info('*** Versioning files and pushing to Github ***')
     destinations = [dataDestination, PDFdestination]
     for d in destinations:
         os.system("./gitVersion.sh "+d)
 
 def main():
-    logging.warning('=========================================')
-    logging.warning('*** Export started ***')
+    logging.info('=========================================')
+    logging.info('*** Export started ***')
     exportStartTime = int(time.time())
     lastExport = readTime()
     makeDestinations()
@@ -223,7 +225,7 @@ def main():
     if len(uriExportList) > 0 or len(uriDeleteList):
         findAssociatedDigitalObjects(headers)
     #versionFiles()
-    logging.warning('*** Export completed ***')
+    logging.info('*** Export completed ***')
     #logout(headers)
     updateTime(exportStartTime)
 
