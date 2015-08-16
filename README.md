@@ -16,40 +16,40 @@ These scripts export updated data from ArchivesSpace and version all data in git
     or just download the zip file of this repo
 2.  Create a local configuration file at `local_settings.cfg` and add variables. A sample file looks like this:
 
-````
-      [ArchivesSpace]
-      baseURL:http://localhost:8089
-      repository:2
-      user:admin
-      password:admin
-
-      [EADexport]
-      exportUnpublished:false
-      exportDaos:true
-      exportNumbered:false
-      exportPdf:false
-
-      [LastExport]
-      filepath:lastExport.pickle
-
-      [PDFexport]
-      filepath:ead2pdf.jar
-
-      [Logging]
-      filename:log.txt
-      format: %(asctime)s %(message)s
-      datefmt: %m/%d/%Y %I:%M:%S %p
-      level: WARNING
-````
+        [ArchivesSpace]
+        baseURL:http://localhost:8089
+        repository:2
+        user:admin
+        password:admin
+        
+        [EADexport]
+        exportUnpublished:false
+        exportDaos:true
+        exportNumbered:false
+        exportPdf:false
+        
+        [LastExport]
+        filepath:lastExport.pickle
+        
+        [PDFexport]
+        filepath:ead2pdf.jar
+        
+        [Logging]
+        filename:log.txt
+        format: %(asctime)s %(message)s
+        datefmt: %m/%d/%Y %I:%M:%S %p
+        level: WARNING
 
 3.  Set up repositories
-    Install [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
-    [Create local git repositories](https://git-scm.com/book/en/v2/Git-Basics-Getting-a-Git-Repository) at your data export locations
-    Create [Github](http://github.com) repositories to push to
-    [Add a remote](http://git-scm.com/docs/git-remote) in each of your local repositories pointing to the appropriate Github repository
+    * Install [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
+    * [Create local git repositories](https://git-scm.com/book/en/v2/Git-Basics-Getting-a-Git-Repository) at your data export locations
+    * Create [Github](http://github.com) repositories to push to
+    * [Add a remote](http://git-scm.com/docs/git-remote) in each of your local repositories pointing to the appropriate Github repository
+
 4.  Update variables in gitVersion.sh
-    `remote` should match the name of your remote github repository
-    `branch` should match the name of the [branch]() you want to push to in your remote repository
+    * `remote` should match the name of your remote github repository
+    * `branch` should match the name of the [branch]() you want to push to in your remote repository
+
 5.  Set a cron job to run asExportIncremental.py at an interval of your choice
 
 The first time you run this, the script may take some time to execute, since it will attempt to export all published resource records in your ArchivesSpace repository. If you ever want to do a complete export, simply delete the Pickle file specified in `lastExportFilepath` and the `lastExport` variable will be set to zero (i.e. the epoch, which was long before ArchivesSpace was a twinkle in [anarchivist's](https://github.com/anarchivist) eye).
