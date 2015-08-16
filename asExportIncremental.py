@@ -6,11 +6,11 @@ from lxml import etree
 # local config file, containing variables
 config = ConfigParser.ConfigParser()
 config.read('local_settings.cfg')
-
+# URL parameters dictionary, used to manage common URL patterns
 dictionary = {'baseURL': config.get('ArchivesSpace', 'baseURL'), 'repository':config.get('ArchivesSpace', 'repository'), 'user': config.get('ArchivesSpace', 'user'), 'password': config.get('ArchivesSpace', 'password')}
 baseURL = '{baseURL}'.format(**dictionary)
 repositoryBaseURL = '{baseURL}/repositories/{repository}/'.format(**dictionary)
-
+# Location of Pickle file which contains last export time
 lastExportFilepath = config.get('LastExport', 'filepath')
 # EAD Export options
 exportUnpublished = config.get('EADexport', 'exportUnpublished')
@@ -22,9 +22,9 @@ uriExportList = []
 uriDeleteList = []
 doExportList = []
 doDeleteList = []
-# PDF export utility filePath
+# EAD to PDF export utility filePath
 PDFConvertFilepath = config.get('PDFexport', 'filepath')
-# logging configs
+# Logging configuration
 logging.basicConfig(filename=config.get('Logging', 'filename'),format=config.get('Logging', 'format', 1), datefmt=config.get('Logging', 'datefmt', 1), level=config.get('Logging', 'level', 0))
 
 # export destinations, os.path.sep makes these absolute URLs
