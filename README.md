@@ -6,6 +6,7 @@ These scripts export updated data from ArchivesSpace and version all data in git
 * [lxml](http://lxml.de/)
 * [requests](http://www.python-requests.org/en/latest/)
 * [requests_toolbelt](https://github.com/sigmavirus24/requests-toolbelt)
+* [gittle] (https://github.com/FriendCode/gittle)
 * [git](https://git-scm.com/)
 
 ##Getting Started
@@ -21,19 +22,23 @@ These scripts export updated data from ArchivesSpace and version all data in git
         repository:2
         user:admin
         password:admin
-        
+
         [EADexport]
         exportUnpublished:false
         exportDaos:true
         exportNumbered:false
         exportPdf:false
-        
+
         [LastExport]
         filepath:lastExport.pickle
-        
+
         [PDFexport]
         filepath:ead2pdf.jar
-        
+
+        [Git]
+        dataRemote:git@github.com:username/repository.git
+        PDFRemote:git@github.com:username/repository.git
+
         [Logging]
         filename:log.txt
         format: %(asctime)s %(message)s

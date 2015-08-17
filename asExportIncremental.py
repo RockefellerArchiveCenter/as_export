@@ -4,6 +4,7 @@ import os, requests, json, sys, time, pickle, logging, ConfigParser, re, subproc
 from lxml import etree
 from requests_toolbelt import exceptions
 from requests_toolbelt.downloadutils import stream
+from gittle import Gittle
 
 # local config file, containing variables
 config = ConfigParser.ConfigParser()
@@ -83,7 +84,7 @@ def prettyPrintXml(filePath, resourceID):
         createPDF(resourceID)
     except:
         logging.warning('%s is invalid and will be removed', resourceID)
-        #removeEAD(resourceID)
+        removeEAD(resourceID)
 
 # creates pdf from EAD
 def createPDF(resourceID):
@@ -212,15 +213,29 @@ def findAssociatedDigitalObjects(headers):
         digital_object = (requests.get(repositoryBaseURL+'digital_objects/' + str(d), headers=headers)).json()
         handleAssociatedDigitalObject(digital_object, headers)
 
-#run script to version using git
-def versionFiles():
-    logging.info('*** Versioning files and pushing to Github ***')
+#pull changed files from remote repositoryBaseURL
+def gitPull():
+    logging.info('*** Pulling changed files from remote repository ***')
     destinations = [dataDestination, PDFdestination]
-    for d in destinations:
-        os.system("./gitVersion.sh "+d)
+    remotes = ['dataRemote', 'PDFRemote']
+    for d, r in zip(destinations, remotes):
+        repo = Gittle(d, origin_uri=config.get('Git', r))
+        repo.pull()
+
+#commit changed files and push to remote repository
+def gitPush():
+    logging.info('*** Versioning files and pushing to remote repository ***')
+    destinations = [dataDestination, PDFdestination]
+    remotes = ['dataRemote', 'PDFRemote']
+    for d, r in zip(destinations, remotes):
+        repo = Gittle(d, origin_uri=config.get('Git', r))
+        repo.stage()
+        repo.commit(message="Automated commit")
+        repo.push()
 
 def main():
     logging.info('=========================================')
+    gitPull()
     logging.info('*** Export started ***')
     exportStartTime = int(time.time())
     lastExport = readTime()
@@ -231,7 +246,10 @@ def main():
     findUpdatedDigitalObjects(lastExport, headers)
     if len(uriExportList) > 0 or len(uriDeleteList):
         findAssociatedDigitalObjects(headers)
-    #versionFiles()
+    if len(uriExportList) > 0 or len(uriDeleteList) or len(doExportList) > 0 or len(doDeleteList) > 0:
+        gitPush()
+    else:
+        logging.info('*** Nothing exported ***')
     logging.info('*** Export completed ***')
     #logout(headers)
     updateTime(exportStartTime)
