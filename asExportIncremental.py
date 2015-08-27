@@ -128,6 +128,7 @@ def removeEAD(resourceID):
         os.remove(os.path.join(EADdestination,resourceID,resourceID+'.xml'))
         os.rmdir(os.path.join(EADdestination,resourceID))
         logging.info('%s.xml deleted from %s%s', resourceID, EADdestination, resourceID)
+        removePDF(resourceID)
     else:
         logging.info('%s.xml does not already exist, no need to delete', resourceID)
 
@@ -139,6 +140,14 @@ def removeMETS(doID):
         logging.info('%s.xml deleted from %s%s', doID, METSdestination, doID)
     else:
         logging.info('%s.xml does not exist, no need to delete', doID)
+
+def removePDF(resourceID):
+    if os.path.isfile(os.path.join(PDFdestination,resourceID,resourceID+'.pdf')):
+        os.remove(os.path.join(PDFdestination,resourceID,resourceID+'.pdf'))
+        os.rmdir(os.path.join(PDFdestination,resourceID))
+        logging.info('%s.pdf deleted from %s%s', resourceID, PDFdestination, resourceID)
+    else:
+        logging.info('%s.pdf does not already exist, no need to delete', resourceID)
 
 def handleResource(resource, headers):
     resourceID = resource["id_0"]
@@ -211,7 +220,7 @@ def findAssociatedDigitalObjects(headers):
     logging.info('*** Checking associated digital objects ***')
     for d in doIds.json():
         digital_object = (requests.get(repositoryBaseURL+'digital_objects/' + str(d), headers=headers)).json()
-        handleAssociatedDigitalObject(digital_object, headers)
+        handleAssociatedDigitalObject(digital_object, d, headers)
 
 #pull changed files from remote repositoryBaseURL
 def gitPull():
@@ -229,7 +238,7 @@ def gitPush():
     remotes = ['dataRemote', 'PDFRemote']
     for d, r in zip(destinations, remotes):
         repo = Gittle(d, origin_uri=config.get('Git', r))
-        repo.stage()
+        repo.stage(repo.pending_files)
         repo.commit(message="Automated commit")
         repo.push()
 
