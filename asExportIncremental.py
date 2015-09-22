@@ -27,6 +27,8 @@ doExportList = []
 doDeleteList = []
 # EAD to PDF export utility filePath
 PDFConvertFilepath = config.get('PDFexport', 'filepath')
+# EAD to MODS XSL filepath
+MODSxsl = config.get('MODSexport', 'filepath')
 # Logging configuration
 logging.basicConfig(filename=config.get('Logging', 'filename'),format=config.get('Logging', 'format', 1), datefmt=config.get('Logging', 'datefmt', 1), level=config.get('Logging', 'level', 0))
 # Sets logging of requests to WARNING to avoid unneccessary info
@@ -36,6 +38,7 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 dataDestination = os.path.join(os.path.sep,'Users','harnold','Desktop','data')
 EADdestination = os.path.join(dataDestination,'ead')
 METSdestination = os.path.join(dataDestination,'mets')
+MODSdestination = os.path.join(dataDestination,'mods')
 PDFdestination = os.path.join(os.path.sep,'Users','harnold','Desktop','pdf')
 
 def makeDestinations():
@@ -73,18 +76,34 @@ def updateTime(exportStartTime):
     with open(lastExportFilepath, 'wb') as pickle_handle:
         pickle.dump(exportStartTime, pickle_handle)
 
+# Create MODS files using XSLT
+def EADtoMODS(resourceID, ead, headers):
+    if not os.path.exists(os.path.join(MODSdestination,resourceID)):
+        os.makedirs(os.path.join(MODSdestination,resourceID))
+    filePath = os.path.join(MODSdestination,resourceID,resourceID+'.xml')
+    parser = etree.XMLParser(resolve_entities=False, strip_cdata=False, remove_blank_text=True)
+    document = etree.parse(ead, parser)
+    xslt = etree.parse(MODSxsl)
+    transform = etree.XSLT(xslt)
+    mods = transform(document)
+    mods.write(filePath, pretty_print=True, encoding='utf-8')
+
 # formats XML files
-def prettyPrintXml(filePath, resourceID):
+def prettyPrintXml(filePath, resourceID, headers):
     assert filePath is not None
     parser = etree.XMLParser(resolve_entities=False, strip_cdata=False, remove_blank_text=True)
     try:
         etree.parse(filePath, parser)
-        document = etree.parse(filePath, parser)
-        document.write(filePath, pretty_print=True, encoding='utf-8')
-        createPDF(resourceID)
     except:
         logging.warning('%s is invalid and will be removed', resourceID)
         removeEAD(resourceID)
+    document = etree.parse(filePath, parser)
+    document.write(filePath, pretty_print=True, encoding='utf-8')
+    if 'LI' in resourceID:
+        EADtoMODS(resourceID, filePath, headers)
+        removeEAD(resourceID)
+    else:
+        createPDF(resourceID)
 
 # creates pdf from EAD
 def createPDF(resourceID):
@@ -108,7 +127,7 @@ def exportEAD(resourceID, identifier, headers):
     except exceptions.StreamingError as e:
         logging.warning(e.message)
     #validate here
-    prettyPrintXml(os.path.join(EADdestination,resourceID,resourceID+'.xml'), resourceID)
+    prettyPrintXml(os.path.join(EADdestination,resourceID,resourceID+'.xml'), resourceID, headers)
 
 # Exports METS file
 def exportMETS(doID, d, headers):
@@ -159,7 +178,7 @@ def removePDF(resourceID):
 def handleResource(resource, headers):
     resourceID = resource["id_0"]
     identifier = re.split('^/repositories/[1-9]*/resources/',resource["uri"])[1]
-    if resource["publish"] and not ('LI' in resourceID):
+    if resource["publish"]:
         exportEAD(resourceID, identifier, headers)
     else:
         removeEAD(resourceID)
