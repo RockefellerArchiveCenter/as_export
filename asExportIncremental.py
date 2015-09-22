@@ -20,9 +20,9 @@ exportUnpublished = config.get('EADexport', 'exportUnpublished')
 exportDaos = config.get('EADexport', 'exportDaos')
 exportNumbered = config.get('EADexport', 'exportNumbered')
 exportPdf = config.get('EADexport', 'exportPdf')
-# URI lists (to be populated by URIs of exported or deleted records)
-uriExportList = []
-uriDeleteList = []
+# ResourceID lists (to be populated by ids of exported or deleted records)
+resourceExportList = []
+resourceDeleteList = []
 doExportList = []
 doDeleteList = []
 # EAD to PDF export utility filePath
@@ -103,6 +103,8 @@ def exportEAD(resourceID, identifier, headers):
             filename = stream.stream_response_to_file(ead, path=fd)
             fd.close
             logging.info('%s.xml exported to %s', resourceID, os.path.join(EADdestination,resourceID))
+            resourceExportList.append(resourceID)
+            print resourceExportList
     except exceptions.StreamingError as e:
         logging.warning(e.message)
     #validate here
@@ -118,6 +120,7 @@ def exportMETS(doID, d, headers):
             filename = stream.stream_response_to_file(mets, path=fd)
             fd.close
             logging.info('%s.xml exported to %s', doID, os.path.join(METSdestination,doID))
+            doExportList.append(doID)
     except exceptions.StreamingError as e:
         logging.warning(e.message)
     #validate here
@@ -128,9 +131,12 @@ def removeEAD(resourceID):
         os.remove(os.path.join(EADdestination,resourceID,resourceID+'.xml'))
         os.rmdir(os.path.join(EADdestination,resourceID))
         logging.info('%s.xml deleted from %s%s', resourceID, EADdestination, resourceID)
+        resourceDeleteList.append(resourceID)
         removePDF(resourceID)
+        print resourceDeleteList
     else:
         logging.info('%s.xml does not already exist, no need to delete', resourceID)
+        print resourceDeleteList
 
 # Deletes METS file if it exists
 def removeMETS(doID):
@@ -138,6 +144,7 @@ def removeMETS(doID):
         os.remove(os.path.join(METSdestination,doID,doID+'.xml'))
         os.rmdir(os.path.join(METSdestination,doID))
         logging.info('%s.xml deleted from %s%s', doID, METSdestination, doID)
+        doDeleteList.append(doID)
     else:
         logging.info('%s.xml does not exist, no need to delete', doID)
 
@@ -154,20 +161,16 @@ def handleResource(resource, headers):
     identifier = re.split('^/repositories/[1-9]*/resources/',resource["uri"])[1]
     if resource["publish"] and not ('LI' in resourceID):
         exportEAD(resourceID, identifier, headers)
-        uriExportList.append(resource["uri"])
     else:
         removeEAD(resourceID)
-        uriDeleteList.append(resource["uri"])
 
 def handleDigitalObject(digital_object, d, headers):
     doID = digital_object["digital_object_id"]
     try:
         digital_object["publish"]
         exportMETS(doID, d, headers)
-        doExportList.append(digital_object["uri"])
     except:
         removeMETS(doID)
-        doDeleteList.append(digital_object["uri"])
 
 def handleAssociatedDigitalObject(digital_object, d, headers):
     doID = digital_object["digital_object_id"]
@@ -178,15 +181,12 @@ def handleAssociatedDigitalObject(digital_object, d, headers):
             resource = digital_object["linked_instances"][0]["ref"]
         else:
             resource = component["resource"]["ref"]
-        if resource in uriExportList:
+        if resource in resourceExportList:
             exportMETS(doID, d, headers)
-            doExportList.append(digital_object["uri"])
-        elif resource in uriDeleteList:
+        elif resource in resourceDeleteList:
             removeMETS(doID)
-            doDeleteList.append(digital_object["uri"])
     except:
         removeMETS(doID)
-        doDeleteList.append(digital_object["uri"])
 
 # Looks for updated resources
 def findUpdatedResources(lastExport, headers):
@@ -203,7 +203,7 @@ def findUpdatedObjects(lastExport, headers):
     for a in archival_objects.json():
         archival_object = requests.get(repositoryBaseURL+'archival_objects/'+str(a), headers=headers).json()
         resource = (requests.get(baseURL+archival_object["resource"]["ref"], headers=headers)).json()
-        if not resource["uri"] in uriExportList and not resource["uri"] in uriDeleteList:
+        if not resource["id_0"] in resourceExportList and not resource["id_0"] in resourceDeleteList:
             handleResource(resource, headers)
 
 # Looks for updated digital objects
@@ -253,9 +253,9 @@ def main():
     findUpdatedResources(lastExport, headers)
     findUpdatedObjects(lastExport, headers)
     findUpdatedDigitalObjects(lastExport, headers)
-    if len(uriExportList) > 0 or len(uriDeleteList):
+    if len(resourceExportList) > 0 or len(resourceDeleteList):
         findAssociatedDigitalObjects(headers)
-    if len(uriExportList) > 0 or len(uriDeleteList) or len(doExportList) > 0 or len(doDeleteList) > 0:
+    if len(resourceExportList) > 0 or len(resourceDeleteList) or len(doExportList) > 0 or len(doDeleteList) > 0:
         gitPush()
     else:
         logging.info('*** Nothing exported ***')
