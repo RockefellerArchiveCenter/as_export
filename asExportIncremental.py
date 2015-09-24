@@ -27,6 +27,8 @@ doExportList = []
 doDeleteList = []
 # EAD to PDF export utility filePath
 PDFConvertFilepath = config.get('PDFexport', 'filepath')
+# EAD to MODS XSL filepath
+MODSxsl = config.get('MODSexport', 'filepath')
 # Logging configuration
 logging.basicConfig(filename=config.get('Logging', 'filename'),format=config.get('Logging', 'format', 1), datefmt=config.get('Logging', 'datefmt', 1), level=config.get('Logging', 'level', 0))
 # Sets logging of requests to WARNING to avoid unneccessary info
@@ -36,6 +38,7 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 dataDestination = os.path.join(os.path.sep,'Users','harnold','Desktop','data')
 EADdestination = os.path.join(dataDestination,'ead')
 METSdestination = os.path.join(dataDestination,'mets')
+MODSdestination = os.path.join(dataDestination,'mods')
 PDFdestination = os.path.join(os.path.sep,'Users','harnold','Desktop','pdf')
 
 def makeDestinations():
@@ -73,18 +76,35 @@ def updateTime(exportStartTime):
     with open(lastExportFilepath, 'wb') as pickle_handle:
         pickle.dump(exportStartTime, pickle_handle)
 
+# Create MODS files using XSLT
+def EADtoMODS(resourceID, ead, headers):
+    if not os.path.exists(os.path.join(MODSdestination,resourceID)):
+        os.makedirs(os.path.join(MODSdestination,resourceID))
+    filePath = os.path.join(MODSdestination,resourceID,resourceID+'.xml')
+    parser = etree.XMLParser(resolve_entities=False, strip_cdata=False, remove_blank_text=True)
+    document = etree.parse(ead, parser)
+    xslt = etree.parse(MODSxsl)
+    transform = etree.XSLT(xslt)
+    mods = transform(document)
+    mods.write(filePath, pretty_print=True, encoding='utf-8')
+    logging.info('%s.xml created at %s', resourceID, os.path.join(MODSdestination,resourceID))
+
 # formats XML files
-def prettyPrintXml(filePath, resourceID):
+def prettyPrintXml(filePath, resourceID, headers):
     assert filePath is not None
     parser = etree.XMLParser(resolve_entities=False, strip_cdata=False, remove_blank_text=True)
     try:
         etree.parse(filePath, parser)
-        document = etree.parse(filePath, parser)
-        document.write(filePath, pretty_print=True, encoding='utf-8')
-        createPDF(resourceID)
+        if 'LI' in resourceID:
+            EADtoMODS(resourceID, filePath, headers)
+            removeFile(resourceID, EADdestination)
+        else:
+            document = etree.parse(filePath, parser)
+            document.write(filePath, pretty_print=True, encoding='utf-8')
+            createPDF(resourceID)
     except:
         logging.warning('%s is invalid and will be removed', resourceID)
-        removeEAD(resourceID)
+        removeFile(resourceID, EADdestination)
 
 # creates pdf from EAD
 def createPDF(resourceID):
@@ -104,11 +124,10 @@ def exportEAD(resourceID, identifier, headers):
             fd.close
             logging.info('%s.xml exported to %s', resourceID, os.path.join(EADdestination,resourceID))
             resourceExportList.append(resourceID)
-            print resourceExportList
     except exceptions.StreamingError as e:
         logging.warning(e.message)
     #validate here
-    prettyPrintXml(os.path.join(EADdestination,resourceID,resourceID+'.xml'), resourceID)
+    prettyPrintXml(os.path.join(EADdestination,resourceID,resourceID+'.xml'), resourceID, headers)
 
 # Exports METS file
 def exportMETS(doID, d, headers):
@@ -126,43 +145,27 @@ def exportMETS(doID, d, headers):
     #validate here
 
 # Deletes EAD file if it exists
-def removeEAD(resourceID):
-    if os.path.isfile(os.path.join(EADdestination,resourceID,resourceID+'.xml')):
-        os.remove(os.path.join(EADdestination,resourceID,resourceID+'.xml'))
-        os.rmdir(os.path.join(EADdestination,resourceID))
-        logging.info('%s.xml deleted from %s%s', resourceID, EADdestination, resourceID)
-        resourceDeleteList.append(resourceID)
-        removePDF(resourceID)
-        print resourceDeleteList
+def removeFile(identifier, destination):
+    if os.path.isfile(os.path.join(destination,identifier,identifier+'.xml')):
+        os.remove(os.path.join(destination,identifier,identifier+'.xml'))
+        os.rmdir(os.path.join(destination,identifier))
+        logging.info('%s deleted from %s/%s', identifier, destination, identifier)
+        resourceDeleteList.append(identifier)
+        if os.path.isfile(os.path.join(PDFdestination,identifier,identifier+'.pdf')):
+            removeFile(identifier, PDFdestination)
     else:
-        logging.info('%s.xml does not already exist, no need to delete', resourceID)
-        print resourceDeleteList
-
-# Deletes METS file if it exists
-def removeMETS(doID):
-    if os.path.isfile(os.path.join(METSdestination,doID,doID+'.xml')):
-        os.remove(os.path.join(METSdestination,doID,doID+'.xml'))
-        os.rmdir(os.path.join(METSdestination,doID))
-        logging.info('%s.xml deleted from %s%s', doID, METSdestination, doID)
-        doDeleteList.append(doID)
-    else:
-        logging.info('%s.xml does not exist, no need to delete', doID)
-
-def removePDF(resourceID):
-    if os.path.isfile(os.path.join(PDFdestination,resourceID,resourceID+'.pdf')):
-        os.remove(os.path.join(PDFdestination,resourceID,resourceID+'.pdf'))
-        os.rmdir(os.path.join(PDFdestination,resourceID))
-        logging.info('%s.pdf deleted from %s%s', resourceID, PDFdestination, resourceID)
-    else:
-        logging.info('%s.pdf does not already exist, no need to delete', resourceID)
+        logging.info('%s does not already exist, no need to delete', identifier)
 
 def handleResource(resource, headers):
     resourceID = resource["id_0"]
     identifier = re.split('^/repositories/[1-9]*/resources/',resource["uri"])[1]
-    if resource["publish"] and not ('LI' in resourceID):
+    if resource["publish"]:
         exportEAD(resourceID, identifier, headers)
     else:
-        removeEAD(resourceID)
+        if 'LI' in resourceID:
+            removeFile(resourceID, MODSdestination)
+        else:
+            removeFile(resourceID, EADdestination)
 
 def handleDigitalObject(digital_object, d, headers):
     doID = digital_object["digital_object_id"]
@@ -170,7 +173,7 @@ def handleDigitalObject(digital_object, d, headers):
         digital_object["publish"]
         exportMETS(doID, d, headers)
     except:
-        removeMETS(doID)
+        removeFile(doID, METSdestination)
 
 def handleAssociatedDigitalObject(digital_object, d, headers):
     doID = digital_object["digital_object_id"]
@@ -184,9 +187,18 @@ def handleAssociatedDigitalObject(digital_object, d, headers):
         if resource in resourceExportList:
             exportMETS(doID, d, headers)
         elif resource in resourceDeleteList:
-            removeMETS(doID)
+            removeFile(doID, METSdestination)
     except:
-        removeMETS(doID)
+        removeFile(doID, METSdestination)
+
+# Looks for all resource records starting with "LI"
+def findAllLibraryResources(headers):
+    resourceIds = requests.get(repositoryBaseURL+'resources?all_ids=true', headers=headers)
+    logging.info('*** Checking resources ***')
+    for r in resourceIds.json():
+        resource = (requests.get(repositoryBaseURL+'resources/' + str(r), headers=headers)).json()
+        if 'LI' in resource["id_0"]:
+            handleResource(resource, headers)
 
 # Looks for updated resources
 def findUpdatedResources(lastExport, headers):
@@ -250,6 +262,7 @@ def main():
     lastExport = readTime()
     makeDestinations()
     headers = authenticate()
+    findAllLibraryResources(headers)
     findUpdatedResources(lastExport, headers)
     findUpdatedObjects(lastExport, headers)
     findUpdatedDigitalObjects(lastExport, headers)

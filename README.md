@@ -35,6 +35,10 @@ These scripts export updated data from ArchivesSpace and version all data in git
         [PDFexport]
         filepath:ead2pdf.jar
 
+        [MODSexport]
+        # EAD to MODS XSL filepath
+        filepath:eadToMods.xsl
+
         [Git]
         dataRemote:git@github.com:username/repository.git
         PDFRemote:git@github.com:username/repository.git
