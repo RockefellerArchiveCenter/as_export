@@ -2,7 +2,7 @@
 These scripts export updated data from ArchivesSpace and version all data in git.
 
 ##Dependencies
-* [Python](https://www.python.org/) - tested on 2.7 but will probably work with other versions
+* [Python 2.7 or higher](https://www.python.org/)
 * [lxml](http://lxml.de/)
 * [requests](http://www.python-requests.org/en/latest/)
 * [requests_toolbelt](https://github.com/sigmavirus24/requests-toolbelt)
