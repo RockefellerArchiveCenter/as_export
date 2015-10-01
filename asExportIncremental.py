@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, requests, json, sys, time, pickle, logging, ConfigParser, re, subprocess
+import os, requests, json, sys, time, pickle, logging, ConfigParser, re, subprocess, random
 from lxml import etree
 from requests_toolbelt import exceptions
 from requests_toolbelt.downloadutils import stream
@@ -33,6 +33,8 @@ MODSxsl = config.get('MODSexport', 'filepath')
 logging.basicConfig(filename=config.get('Logging', 'filename'),format=config.get('Logging', 'format', 1), datefmt=config.get('Logging', 'datefmt', 1), level=config.get('Logging', 'level', 0))
 # Sets logging of requests to WARNING to avoid unneccessary info
 logging.getLogger("requests").setLevel(logging.WARNING)
+# Adds randomly generated commit message from external text file
+commitMessage = line = random.choice(open(config.get('Git', 'commitMessageData')).readlines());
 
 # export destinations, os.path.sep makes these absolute URLs
 dataDestination = os.path.join(os.path.sep,'Users','harnold','Desktop','data')
@@ -251,7 +253,7 @@ def gitPush():
     for d, r in zip(destinations, remotes):
         repo = Gittle(d, origin_uri=config.get('Git', r))
         repo.stage(repo.pending_files)
-        repo.commit(message="Automated commit")
+        repo.commit(message=commitMessage)
         repo.push()
 
 def main():
