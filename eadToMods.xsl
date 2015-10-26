@@ -20,7 +20,7 @@
                 <xsl:apply-templates select="/ead:ead/ead:archdesc/ead:did/ead:unittitle"/>
                 <xsl:apply-templates select="/ead:ead/ead:archdesc/ead:odd[ead:head='Uniform Title']"/>
                 <xsl:apply-templates select="/ead:ead/ead:archdesc/ead:odd[ead:head='Variant Title']"/>
-                <xsl:apply-templates select="/ead:ead/ead:archdesc/ead:did/ead:origination[child::*[not(starts-with(@role,'Publisher'))]]"/>
+                <xsl:apply-templates select="/ead:ead/ead:archdesc/ead:did/ead:origination[child::*[not(starts-with(@label,'pub'))]]"/>
                 <xsl:call-template name="publicationInfo"/>
                 <xsl:call-template name="physicalDesc"/>
                 <xsl:call-template name="series"/>
@@ -68,7 +68,7 @@
 
     <!-- Creator -->
     <!-- NOTE: may want to parse out nameparts, at least the date -->
-    <xsl:template match="/ead:ead/ead:archdesc/ead:did/ead:origination[child::*[not(starts-with(@role,'Publisher'))]]">
+    <xsl:template match="/ead:ead/ead:archdesc/ead:did/ead:origination[child::*[not(starts-with(@role,'pub'))]]">
         <xsl:variable name="name" select="normalize-space(child::*)"/>
         <name>
             <namePart>
@@ -189,18 +189,11 @@
 
     <!-- Collation -->
     <xsl:template name="physicalDesc">
-        <xsl:if test="/ead:ead/ead:archdesc/ead:did/ead:physdesc[@label='General Physical Description']">
+           <xsl:if test="/ead:ead/ead:archdesc/ead:did/ead:physdesc/ead:extent">
             <physicalDescription>
-                <xsl:choose>
-                    <xsl:when test="/ead:ead/ead:archdesc/ead:did/ead:physdesc/ead:extent">
-                        <xsl:for-each select="/ead:ead/ead:archdesc/ead:did/ead:physdesc/ead:extent">
-                            <extent><xsl:value-of select="."/></extent>
-                        </xsl:for-each>
-                    </xsl:when>
-                    <xsl:otherwise>
-                        <extent><xsl:value-of select="."/></extent>
-                    </xsl:otherwise>
-                </xsl:choose>
+                <xsl:for-each select="/ead:ead/ead:archdesc/ead:did/ead:physdesc/ead:extent">
+                    <extent><xsl:value-of select="."/></extent>
+                </xsl:for-each>
             </physicalDescription>
         </xsl:if>
     </xsl:template>
@@ -254,7 +247,7 @@
 
     <!-- Controll Access Headings -->
     <xsl:template match="/ead:ead/ead:archdesc/ead:controlaccess">
-        <xsl:for-each select="child::*">
+        <xsl:for-each select="child::*[not(starts-with(@role,'aut'))]">
             <xsl:choose>
                 <xsl:when test="self::ead:persname">
                     <subject>
