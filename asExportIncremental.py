@@ -6,6 +6,14 @@ from requests_toolbelt import exceptions
 from requests_toolbelt.downloadutils import stream
 from gittle import Gittle
 
+pid = str(os.getpid())
+pidfile = 'daemon.pid'
+
+if os.path.isfile(pidfile):
+    sys.exit()
+else:
+    file(pidfile, 'w').write(pid)
+
 # local config file, containing variables
 config = ConfigParser.ConfigParser()
 config.read('local_settings.cfg')
@@ -277,5 +285,6 @@ def main():
     logging.info('*** Export completed ***')
     #logout(headers)
     updateTime(exportStartTime)
+    os.unlink(pidfile)
 
 main()

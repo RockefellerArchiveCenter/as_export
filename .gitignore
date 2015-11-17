@@ -1,2 +1,3 @@
 local_settings.cfg
 log.txt
+*.pid
