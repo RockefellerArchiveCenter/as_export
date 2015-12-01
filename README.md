@@ -2,14 +2,17 @@
 These scripts export updated data from ArchivesSpace and version all data in git.
 
 ##Dependencies
-* [Python 2.7 or higher](https://www.python.org/)
-* [lxml](http://lxml.de/)
-* [requests](http://www.python-requests.org/en/latest/)
-* [requests_toolbelt](https://github.com/sigmavirus24/requests-toolbelt)
-* [gittle] (https://github.com/FriendCode/gittle)
-* [git](https://git-scm.com/)
+
+*   [Python 2.7 or higher](https://www.python.org/)
+*   [lxml](http://lxml.de/)
+*   [requests](http://www.python-requests.org/en/latest/)
+*   [requests_toolbelt](https://github.com/sigmavirus24/requests-toolbelt)
+*   [psutil](https://github.com/giampaolo/psutil)
+*   [gittle](https://github.com/FriendCode/gittle)
+*   [git](https://git-scm.com/)
 
 ##Getting Started
+
 1.  Get a copy of the repo
 
         git clone git@github.com:RockefellerArchiveCenter/asExportIncremental.git
@@ -50,6 +53,7 @@ These scripts export updated data from ArchivesSpace and version all data in git
         level: WARNING
 
 3.  Set up repositories
+
     * Install [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
     * [Create local git repositories](https://git-scm.com/book/en/v2/Git-Basics-Getting-a-Git-Repository) at your data export locations
     * Create [Github](http://github.com) repositories to push to
@@ -58,6 +62,21 @@ These scripts export updated data from ArchivesSpace and version all data in git
 4.  Set a cron job to run asExportIncremental.py at an interval of your choice
 
 The first time you run this, the script may take some time to execute, since it will attempt to export all published resource records in your ArchivesSpace repository. If you ever want to do a complete export, simply delete the Pickle file specified in `lastExportFilepath` and the `lastExport` variable will be set to zero (i.e. the epoch, which was long before ArchivesSpace was a twinkle in [anarchivist's](https://github.com/anarchivist) eye).
+
+##Optional arguments
+The script supports a few arguments, which will include or exclude specific functions.
+
+`--update_time` updates last exported time stored in external file to current time. Useful when you want to avoid exporting everything after you re-sequence your AS instance.
+
+`--archival` exports EAD for all resource records whose id_0 does not start with 'LI', regardless of when those resources were last updated. When this argument is used, the script does not update the last run time.
+
+`--library` exports MODS for all resource records whose id_0 starts with 'LI', regardless of when those resources were last updated. When this argument is used, the script does not update the last run time.
+
+`--digital` exports METS for all digital object records, regardless of when those resources were last updated. When this argument is used, the script does not update the last run time.
+
+`--digital --resource %identifier%` exports METS digital object records associated with the the resource record whose id_0 matches %identifier%, regardless of when those records were last updated. When this argument is used, the script does not update the last run time.
+
+`--resource %identifier%` exports EAD for the resource record whose id_0 matches %identifier%, regardless of when those resources were last updated. When this argument is used, the script does not update the last run time.
 
 ##What's here
 

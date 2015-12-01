@@ -1,18 +1,10 @@
 #!/usr/bin/env python
 
-import os, requests, json, sys, time, pickle, logging, ConfigParser, re, subprocess, random
+import os, requests, json, sys, time, pickle, logging, ConfigParser, re, subprocess, random, psutil
 from lxml import etree
 from requests_toolbelt import exceptions
 from requests_toolbelt.downloadutils import stream
 from gittle import Gittle
-
-pid = str(os.getpid())
-pidfile = 'daemon.pid'
-
-if os.path.isfile(pidfile):
-    sys.exit()
-else:
-    file(pidfile, 'w').write(pid)
 
 # local config file, containing variables
 config = ConfigParser.ConfigParser()
@@ -45,11 +37,30 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 commitMessage = line = random.choice(open(config.get('Git', 'commitMessageData')).readlines());
 
 # export destinations, os.path.sep makes these absolute URLs
-dataDestination = os.path.join(os.path.sep,'Users','harnold','Desktop','data')
-EADdestination = os.path.join(dataDestination,'ead')
-METSdestination = os.path.join(dataDestination,'mets')
-MODSdestination = os.path.join(dataDestination,'mods')
-PDFdestination = os.path.join(os.path.sep,'Users','harnold','Desktop','pdf')
+dataDestination = config.get('Destinations', 'dataDestination')
+EADdestination = config.get('Destinations', 'EADdestination')
+METSdestination = config.get('Destinations', 'METSdestination')
+MODSdestination = config.get('Destinations', 'MODSdestination')
+PDFdestination = config.get('Destinations', 'PDFdestination')
+
+# file path to record process id
+pidfilepath = 'daemon.pid'
+
+# check to see if process is already running
+def checkPid(pidfilepath):
+    currentPid = str(os.getpid())
+
+    if os.path.isfile(pidfilepath):
+        pidfile = open(pidfilepath, "r")
+        for line in pidfile:
+            pid=int(line.strip())
+        if psutil.pid_exists(pid):
+            logging.error('Process already running, exiting')
+            sys.exit()
+        else:
+            file(pidfilepath, 'w').write(currentPid)
+    else:
+        file(pidfilepath, 'w').write(currentPid)
 
 def makeDestinations():
     destinations = [EADdestination, PDFdestination, METSdestination]
@@ -85,6 +96,7 @@ def readTime():
 def updateTime(exportStartTime):
     with open(lastExportFilepath, 'wb') as pickle_handle:
         pickle.dump(exportStartTime, pickle_handle)
+        logging.info('Last export time updated to ' + str(exportStartTime))
 
 # Create MODS files using XSLT
 def EADtoMODS(resourceID, ead, headers):
@@ -185,35 +197,52 @@ def handleDigitalObject(digital_object, d, headers):
     except:
         removeFile(doID, METSdestination)
 
-def handleAssociatedDigitalObject(digital_object, d, headers):
+def handleAssociatedDigitalObject(digital_object, d, headers, resourceId=None):
     doID = digital_object["digital_object_id"]
     try:
         digital_object["publish"]
         component = (requests.get(baseURL + digital_object["linked_instances"][0]["ref"], headers=headers)).json()
         if component["jsonmodel_type"] == 'resource':
-            resource = digital_object["linked_instances"][0]["ref"]
+            resourceRef = digital_object["linked_instances"][0]["ref"]
         else:
-            resource = component["resource"]["ref"]
-        if resource in resourceExportList:
+            resourceRef = component["resource"]["ref"]
+        resource = resource = (requests.get(repositoryBaseURL + resourceRef, header=headers)).json()
+        if resource["id_0"] == resourceId:
             exportMETS(doID, d, headers)
-        elif resource in resourceDeleteList:
-            removeFile(doID, METSdestination)
     except:
         removeFile(doID, METSdestination)
 
 # Looks for all resource records starting with "LI"
 def findAllLibraryResources(headers):
     resourceIds = requests.get(repositoryBaseURL+'resources?all_ids=true', headers=headers)
-    logging.info('*** Checking resources ***')
+    logging.info('*** Getting a list of all resources ***')
     for r in resourceIds.json():
         resource = (requests.get(repositoryBaseURL+'resources/' + str(r), headers=headers)).json()
         if 'LI' in resource["id_0"]:
             handleResource(resource, headers)
 
+# Looks for a specific resource record using id_0
+def findResource(headers, resourceId):
+    resourceIds = requests.get(repositoryBaseURL+'resources?all_ids=true', headers=headers)
+    logging.info('*** Getting a list of all resources ***')
+    for r in resourceIds.json():
+        resource = (requests.get(repositoryBaseURL+'resources/' + str(r), headers=headers)).json()
+        if resourceId in resource["id_0"]:
+            handleResource(resource, headers)
+
+# Looks for all resource records not starting with "LI"
+def findAllArchivalResources(headers):
+    resourceIds = requests.get(repositoryBaseURL+'resources?all_ids=true', headers=headers)
+    logging.info('*** Getting a list of all resources ***')
+    for r in resourceIds.json():
+        resource = (requests.get(repositoryBaseURL+'resources/' + str(r), headers=headers)).json()
+        if not 'LI' in resource["id_0"]:
+            handleResource(resource, headers)
+
 # Looks for updated resources
 def findUpdatedResources(lastExport, headers):
     resourceIds = requests.get(repositoryBaseURL+'resources?all_ids=true&modified_since='+str(lastExport), headers=headers)
-    logging.info('*** Checking resources ***')
+    logging.info('*** Checking updated resources ***')
     for r in resourceIds.json():
         resource = (requests.get(repositoryBaseURL+'resources/' + str(r), headers=headers)).json()
         handleResource(resource, headers)
@@ -221,28 +250,36 @@ def findUpdatedResources(lastExport, headers):
 # Looks for updated components
 def findUpdatedObjects(lastExport, headers):
     archival_objects = requests.get(repositoryBaseURL+'archival_objects?all_ids=true&modified_since='+str(lastExport), headers=headers)
-    logging.info('*** Checking archival objects ***')
+    logging.info('*** Checking updated archival objects ***')
     for a in archival_objects.json():
         archival_object = requests.get(repositoryBaseURL+'archival_objects/'+str(a), headers=headers).json()
         resource = (requests.get(baseURL+archival_object["resource"]["ref"], headers=headers)).json()
         if not resource["id_0"] in resourceExportList and not resource["id_0"] in resourceDeleteList:
             handleResource(resource, headers)
 
+# Looks for all digital objects
+def findAllDigitalObjects(headers):
+    doIds = requests.get(repositoryBaseURL+'digital_objects?all_ids=true', headers=headers)
+    logging.info('*** Getting a list of all digital objects ***')
+    for d in doIds.json():
+        digital_object = (requests.get(repositoryBaseURL+'digital_objects/' + str(d), headers=headers)).json()
+        handleDigitalObject(digital_object, d, headers)
+
 # Looks for updated digital objects
 def findUpdatedDigitalObjects(lastExport, headers):
     doIds = requests.get(repositoryBaseURL+'digital_objects?all_ids=true&modified_since='.format(**dictionary)+str(lastExport), headers=headers)
-    logging.info('*** Checking digital objects ***')
+    logging.info('*** Checking updated digital objects ***')
     for d in doIds.json():
         digital_object = (requests.get(repositoryBaseURL+'digital_objects/' + str(d), headers=headers)).json()
         handleDigitalObject(digital_object, d, headers)
 
 # Looks for digital objects associated with updated resource records
-def findAssociatedDigitalObjects(headers):
+def findAssociatedDigitalObjects(headers, resourceId=None):
     doIds = requests.get(repositoryBaseURL+'digital_objects?all_ids=true', headers=headers)
     logging.info('*** Checking associated digital objects ***')
     for d in doIds.json():
         digital_object = (requests.get(repositoryBaseURL+'digital_objects/' + str(d), headers=headers)).json()
-        handleAssociatedDigitalObject(digital_object, d, headers)
+        handleAssociatedDigitalObject(digital_object, d, headers, resourceId=None)
 
 #pull changed files from remote repositoryBaseURL
 def gitPull():
@@ -266,25 +303,72 @@ def gitPush():
 
 def main():
     logging.info('=========================================')
-    gitPull()
     logging.info('*** Export started ***')
     exportStartTime = int(time.time())
     lastExport = readTime()
-    makeDestinations()
     headers = authenticate()
-    findAllLibraryResources(headers)
     findUpdatedResources(lastExport, headers)
     findUpdatedObjects(lastExport, headers)
     findUpdatedDigitalObjects(lastExport, headers)
-    if len(resourceExportList) > 0 or len(resourceDeleteList):
-        findAssociatedDigitalObjects(headers)
     if len(resourceExportList) > 0 or len(resourceDeleteList) or len(doExportList) > 0 or len(doDeleteList) > 0:
         gitPush()
     else:
         logging.info('*** Nothing exported ***')
     logging.info('*** Export completed ***')
-    #logout(headers)
     updateTime(exportStartTime)
-    os.unlink(pidfile)
 
-main()
+checkPid(pidfilepath)
+makeDestinations()
+#gitPull()
+if len(sys.argv) >= 2:
+    argument = sys.argv[1]
+    if argument == '--update_time':
+        logging.info('=========================================')
+        exportStartTime = int(time.time())
+        updateTime(exportStartTime)
+    elif argument == '--archival':
+        logging.info('=========================================')
+        logging.info('*** Export of finding aids started ***')
+        headers = authenticate()
+        findAllArchivalResources(headers)
+        logging.info('*** Export of finding aids completed ***')
+    elif argument == '--library':
+        logging.info('=========================================')
+        logging.info('*** Export of library records started ***')
+        headers = authenticate()
+        findAllLibraryResources(headers)
+        logging.info('*** Export of library records completed ***')
+    elif argument == '--digital':
+        if len(sys.argv) >= 3:
+            argument2 = sys.argv[2]
+            if argument2 == '--resource':
+                if len(sys.argv) == 4:
+                    resourceId = sys.argv[3]
+                    logging.info('=========================================')
+                    logging.info('*** Export of digital objects associated with %s started ***', resourceId)
+                    headers = authenticate()
+                    findAssociatedDigitalObjects(headers, resourceId)
+                    logging.info('*** Export of associated digital objects completed ***')
+                else:
+                    print 'You forgot to specify a resource identifier!'
+            else:
+                print 'Unknown second argument "%s" for "%s", please try again'% (sys.argv[2], sys.argv[1])
+        else:
+            logging.info('=========================================')
+            logging.info('*** Export of digital objects started ***')
+            headers = authenticate()
+            findAllDigitalObjects(headers)
+            logging.info('*** Export of digital objects completed ***')
+    elif argument == '--resource':
+        resourceId = sys.argv[2]
+        logging.info('=========================================')
+        logging.info('*** Export of %s started ***', resourceId)
+        headers = authenticate()
+        findResource(headers, resourceId)
+        logging.info('*** Export of finding aids completed ***')
+    else:
+        print 'Unknown argument, please try again'
+else:
+    main()
+os.unlink(pidfilepath)
+#logout(headers)
