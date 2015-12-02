@@ -76,7 +76,7 @@ The script supports a few arguments, which will include or exclude specific func
 
 `--digital --resource %identifier%` exports METS digital object records associated with the the resource record whose id_0 matches %identifier%, regardless of when those records were last updated. When this argument is used, the script does not update the last run time.
 
-`--resource %identifier%` exports EAD for the resource record whose id_0 matches %identifier%, regardless of when those resources were last updated. When this argument is used, the script does not update the last run time.
+`--resource %identifier%` exports EAD for the resource record whose `id_0` contains `%identifier%`, regardless of when those resources were last updated. This argument supports partial matches, for example if `FA00` is entered as the identifier, any resources whose `id_0` contains `FA00` would be exported, including for example `FA001`, `FA002` or `xFA001`. When this argument is used, the script does not update the last run time.
 
 ##What's here
 

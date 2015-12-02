@@ -7,8 +7,9 @@ from requests_toolbelt.downloadutils import stream
 from gittle import Gittle
 
 # local config file, containing variables
+configFilePath = 'local_settings.cfg'
 config = ConfigParser.ConfigParser()
-config.read('local_settings.cfg')
+config.read(configFilePath)
 # URL parameters dictionary, used to manage common URL patterns
 dictionary = {'baseURL': config.get('ArchivesSpace', 'baseURL'), 'repository':config.get('ArchivesSpace', 'repository'), 'user': config.get('ArchivesSpace', 'user'), 'password': config.get('ArchivesSpace', 'password')}
 baseURL = '{baseURL}'.format(**dictionary)
@@ -74,8 +75,13 @@ def authenticate():
         auth = requests.post('{baseURL}/users/{user}/login?password={password}&expiring=false'.format(**dictionary)).json()
         token = {'X-ArchivesSpace-Session':auth["session"]}
         return token
-    except ConnectionError:
-        logging.error('Authentication failed!')
+    except requests.exceptions.RequestException as e:
+        print 'Authentication failed! Make sure the baseURL setting in %s is correct and that your ArchivesSpace instance is running.' % configFilePath
+        print e
+        sys.exit(1)
+    except KeyError:
+        print 'Authentication failed! It looks like you entered the wrong password. Please check the information in %s.' % configFilePath
+        sys.exit(1)
 
 # logs out non-expiring session (not yet in AS core, so commented out)
 def logout(headers):
@@ -197,20 +203,20 @@ def handleDigitalObject(digital_object, d, headers):
     except:
         removeFile(doID, METSdestination)
 
-def handleAssociatedDigitalObject(digital_object, d, headers, resourceId=None):
+def handleAssociatedDigitalObject(digital_object, resourceId, d, headers):
     doID = digital_object["digital_object_id"]
-    try:
-        digital_object["publish"]
-        component = (requests.get(baseURL + digital_object["linked_instances"][0]["ref"], headers=headers)).json()
-        if component["jsonmodel_type"] == 'resource':
-            resourceRef = digital_object["linked_instances"][0]["ref"]
-        else:
-            resourceRef = component["resource"]["ref"]
-        resource = resource = (requests.get(repositoryBaseURL + resourceRef, header=headers)).json()
-        if resource["id_0"] == resourceId:
-            exportMETS(doID, d, headers)
-    except:
-        removeFile(doID, METSdestination)
+    # try:
+    digital_object["publish"]
+    component = (requests.get(baseURL + digital_object["linked_instances"][0]["ref"], headers=headers)).json()
+    if component["jsonmodel_type"] == 'resource':
+        resourceRef = digital_object["linked_instances"][0]["ref"]
+    else:
+        resourceRef = component["resource"]["ref"]
+    resource = resource = (requests.get(baseURL + resourceRef, headers=headers)).json()
+    if resource["id_0"] == resourceId:
+        exportMETS(doID, d, headers)
+    # except:
+    #     removeFile(doID, METSdestination)
 
 # Looks for all resource records starting with "LI"
 def findAllLibraryResources(headers):
@@ -279,7 +285,7 @@ def findAssociatedDigitalObjects(headers, resourceId=None):
     logging.info('*** Checking associated digital objects ***')
     for d in doIds.json():
         digital_object = (requests.get(repositoryBaseURL+'digital_objects/' + str(d), headers=headers)).json()
-        handleAssociatedDigitalObject(digital_object, d, headers, resourceId=None)
+        handleAssociatedDigitalObject(digital_object, resourceId, d, headers,)
 
 #pull changed files from remote repositoryBaseURL
 def gitPull():
@@ -362,7 +368,7 @@ if len(sys.argv) >= 2:
     elif argument == '--resource':
         resourceId = sys.argv[2]
         logging.info('=========================================')
-        logging.info('*** Export of %s started ***', resourceId)
+        logging.info('*** Export of resource records containing %s started ***', resourceId)
         headers = authenticate()
         findResource(headers, resourceId)
         logging.info('*** Export of finding aids completed ***')
