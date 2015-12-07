@@ -205,18 +205,18 @@ def handleDigitalObject(digital_object, d, headers):
 
 def handleAssociatedDigitalObject(digital_object, resourceId, d, headers):
     doID = digital_object["digital_object_id"]
-    # try:
-    digital_object["publish"]
-    component = (requests.get(baseURL + digital_object["linked_instances"][0]["ref"], headers=headers)).json()
-    if component["jsonmodel_type"] == 'resource':
-        resourceRef = digital_object["linked_instances"][0]["ref"]
-    else:
-        resourceRef = component["resource"]["ref"]
-    resource = resource = (requests.get(baseURL + resourceRef, headers=headers)).json()
-    if resource["id_0"] == resourceId:
-        exportMETS(doID, d, headers)
-    # except:
-    #     removeFile(doID, METSdestination)
+    try:
+        digital_object["publish"]
+        component = (requests.get(baseURL + digital_object["linked_instances"][0]["ref"], headers=headers)).json()
+        if component["jsonmodel_type"] == 'resource':
+            resourceRef = digital_object["linked_instances"][0]["ref"]
+        else:
+            resourceRef = component["resource"]["ref"]
+        resource = resource = (requests.get(baseURL + resourceRef, headers=headers)).json()
+        if resource["id_0"] == resourceId:
+            exportMETS(doID, d, headers)
+    except:
+        removeFile(doID, METSdestination)
 
 # Looks for all resource records starting with "LI"
 def findAllLibraryResources(headers):
@@ -337,12 +337,16 @@ if len(sys.argv) >= 2:
         logging.info('*** Export of finding aids started ***')
         headers = authenticate()
         findAllArchivalResources(headers)
+        if len(resourceExportList) > 0 or len(resourceDeleteList) > 0:
+            gitPush()
         logging.info('*** Export of finding aids completed ***')
     elif argument == '--library':
         logging.info('=========================================')
         logging.info('*** Export of library records started ***')
         headers = authenticate()
         findAllLibraryResources(headers)
+        if len(resourceExportList) > 0 or len(resourceDeleteList) > 0:
+            gitPush()
         logging.info('*** Export of library records completed ***')
     elif argument == '--digital':
         if len(sys.argv) >= 3:
@@ -354,6 +358,8 @@ if len(sys.argv) >= 2:
                     logging.info('*** Export of digital objects associated with %s started ***', resourceId)
                     headers = authenticate()
                     findAssociatedDigitalObjects(headers, resourceId)
+                    if len(doExportList) > 0 or len(doDeleteList) > 0:
+                        gitPush()
                     logging.info('*** Export of associated digital objects completed ***')
                 else:
                     print 'You forgot to specify a resource identifier!'
@@ -364,6 +370,8 @@ if len(sys.argv) >= 2:
             logging.info('*** Export of digital objects started ***')
             headers = authenticate()
             findAllDigitalObjects(headers)
+            if len(doExportList) > 0 or len(doDeleteList) > 0:
+                gitPush()
             logging.info('*** Export of digital objects completed ***')
     elif argument == '--resource':
         resourceId = sys.argv[2]
@@ -371,6 +379,8 @@ if len(sys.argv) >= 2:
         logging.info('*** Export of resource records containing %s started ***', resourceId)
         headers = authenticate()
         findResource(headers, resourceId)
+        if len(resourceExportList) > 0:
+            gitPush()
         logging.info('*** Export of finding aids completed ***')
     else:
         print 'Unknown argument, please try again'
