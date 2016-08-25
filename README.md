@@ -53,6 +53,13 @@ These scripts export updated data from ArchivesSpace and version all data in git
         datefmt: %m/%d/%Y %I:%M:%S %p
         level: WARNING
 
+        [Destinations]
+        dataDestination = /exports/data
+        EADdestination = /exports/data/ead
+        METSdestination = /exports/data/mets
+        MODSdestination = /exports/data/mods
+        PDFdestination = /exports/pdf
+
 4.  Set up repositories
 
     * [Create local git repositories](https://git-scm.com/book/en/v2/Git-Basics-Getting-a-Git-Repository) at your data export locations
@@ -69,7 +76,7 @@ These scripts export updated data from ArchivesSpace and version all data in git
 
           git config --global user.name "Your Name"
           git config --global user.email you@example.com
-          
+
 5.  Set a cron job to run asExportIncremental.py at an interval of your choice. This should be done in the crontab of the user who's SSH key has been added to Github.
 
 The first time you run this, the script may take some time to execute, since it will attempt to export all published resource records in your ArchivesSpace repository. If you ever want to do a complete export, simply delete the Pickle file specified in `lastExportFilepath` and the `lastExport` variable will be set to zero (i.e. the epoch, which was long before ArchivesSpace was a twinkle in [anarchivist's](https://github.com/anarchivist) eye).
