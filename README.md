@@ -103,3 +103,6 @@ Exports EAD files from published resource records updated since last export (inc
 
 ###ead2pdf.jar
 Creates PDFs from an EAD file, forked from [ead2pdf](http://github.com/archivesspace/ead2pdf/) which includes the [Rockefeller Archive Center](https://github.com/RockefellerArchiveCenter) logo. You may want to replace this file and recompile the .jar for your local institution. (Java)
+
+##License
+This code is released under the MIT License. See `LICENSE.md` for more information.
