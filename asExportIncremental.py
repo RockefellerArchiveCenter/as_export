@@ -84,8 +84,8 @@ def authenticate():
         sys.exit(1)
 
 # logs out non-expiring session (not yet in AS core, so commented out)
-def logout(headers):
-    requests.post('{baseURL}/logout'.format(**dictionary), headers=headers)
+def logout():
+    requests.post('{baseURL}/logout'.format(**dictionary))
     logging.info('You have been logged out of your session')
 
 # gets time of last export
@@ -387,4 +387,4 @@ if len(sys.argv) >= 2:
 else:
     main()
 os.unlink(pidfilepath)
-#logout(headers)
+logout()
