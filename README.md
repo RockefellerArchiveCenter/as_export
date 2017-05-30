@@ -1,7 +1,7 @@
-#Automated exports for ArchivesSpace
+# Automated exports for ArchivesSpace
 These scripts export updated data from ArchivesSpace and version all data in git.
 
-##Dependencies
+## Dependencies
 
 *   [Python 2.7 or higher](https://www.python.org/) Make sure you install the correct version. On some operating systems, this may require additional steps. It is also helpful to have [pip](https://pypi.python.org/pypi/pip) installed.
 *   [lxml](http://lxml.de/)
@@ -11,7 +11,7 @@ These scripts export updated data from ArchivesSpace and version all data in git
 *   [gittle](https://github.com/FriendCode/gittle)
 *   [git](https://git-scm.com/)
 
-##Getting Started
+## Getting Started
 
 1.  Install dependencies
 2.  Get a copy of the repo
@@ -81,7 +81,7 @@ These scripts export updated data from ArchivesSpace and version all data in git
 
 The first time you run this, the script may take some time to execute, since it will attempt to export all published resource records in your ArchivesSpace repository. If you ever want to do a complete export, simply delete the Pickle file specified in `lastExportFilepath` and the `lastExport` variable will be set to zero (i.e. the epoch, which was long before ArchivesSpace was a twinkle in [anarchivist's](https://github.com/anarchivist) eye).
 
-##Optional arguments
+## Optional arguments
 The script supports a few arguments, which will include or exclude specific functions.
 
 `--update_time` updates last exported time stored in external file to current time. Useful when you want to avoid exporting everything after you re-sequence your AS instance.
@@ -96,13 +96,13 @@ The script supports a few arguments, which will include or exclude specific func
 
 `--resource %identifier%` exports EAD for the resource record whose `id_0` contains `%identifier%`, regardless of when those resources were last updated. This argument supports partial matches, for example if `FA00` is entered as the identifier, any resources whose `id_0` contains `FA00` would be exported, including for example `FA001`, `FA002` or `xFA001`. When this argument is used, the script does not update the last run time.
 
-##What's here
+## What's here
 
-###asExportIncremental.py
+### asExportIncremental.py
 Exports EAD files from published resource records updated since last export (including updates to any child components or associated agents and subjects), as well as METS records for digital object records associated with those resource records. If a resource record is unpublished, this script will remove the EAD, PDF and any associated METS records. Exported or deleted files are logged to a text file `log.txt`. (Python)
 
-###ead2pdf.jar
+### ead2pdf.jar
 Creates PDFs from an EAD file, forked from [ead2pdf](http://github.com/archivesspace/ead2pdf/) which includes the [Rockefeller Archive Center](https://github.com/RockefellerArchiveCenter) logo. You may want to replace this file and recompile the .jar for your local institution. (Java)
 
-##License
+## License
 This code is released under the MIT License. See `LICENSE.md` for more information.
