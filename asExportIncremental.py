@@ -83,7 +83,7 @@ def authenticate():
         print 'Authentication failed! It looks like you entered the wrong password. Please check the information in %s.' % configFilePath
         sys.exit(1)
 
-# logs out non-expiring session (not yet in AS core, so commented out)
+# logs out non-expiring session
 def logout():
     requests.post('{baseURL}/logout'.format(**dictionary))
     logging.info('You have been logged out of your session')
@@ -321,6 +321,7 @@ def main():
     else:
         logging.info('*** Nothing exported ***')
     logging.info('*** Export completed ***')
+    logout()
     updateTime(exportStartTime)
 
 checkPid(pidfilepath)
@@ -340,6 +341,7 @@ if len(sys.argv) >= 2:
         if len(resourceExportList) > 0 or len(resourceDeleteList) > 0:
             gitPush()
         logging.info('*** Export of finding aids completed ***')
+        logout()
     elif argument == '--library':
         logging.info('=========================================')
         logging.info('*** Export of library records started ***')
@@ -348,6 +350,7 @@ if len(sys.argv) >= 2:
         if len(resourceExportList) > 0 or len(resourceDeleteList) > 0:
             gitPush()
         logging.info('*** Export of library records completed ***')
+        logout()
     elif argument == '--digital':
         if len(sys.argv) >= 3:
             argument2 = sys.argv[2]
@@ -361,6 +364,7 @@ if len(sys.argv) >= 2:
                     if len(doExportList) > 0 or len(doDeleteList) > 0:
                         gitPush()
                     logging.info('*** Export of associated digital objects completed ***')
+                    logout()
                 else:
                     print 'You forgot to specify a resource identifier!'
             else:
@@ -373,6 +377,7 @@ if len(sys.argv) >= 2:
             if len(doExportList) > 0 or len(doDeleteList) > 0:
                 gitPush()
             logging.info('*** Export of digital objects completed ***')
+            logout()
     elif argument == '--resource':
         resourceId = sys.argv[2]
         logging.info('=========================================')
@@ -382,9 +387,9 @@ if len(sys.argv) >= 2:
         if len(resourceExportList) > 0:
             gitPush()
         logging.info('*** Export of finding aids completed ***')
+        logout()
     else:
         print 'Unknown argument, please try again'
 else:
     main()
 os.unlink(pidfilepath)
-logout()
