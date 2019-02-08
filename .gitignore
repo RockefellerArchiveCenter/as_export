@@ -1,4 +1,5 @@
 local_settings.cfg
 log.txt
+last_export*
 *.pid
 *.pickle
