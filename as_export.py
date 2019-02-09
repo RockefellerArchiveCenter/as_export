@@ -1,18 +1,20 @@
 #!/usr/bin/env python
 
 import argparse
-import os
-import time
 import configparser
+import logging
+import os
+import random
 import shutil
 import subprocess
-import random
+import time
 from asnake.aspace import ASpace
 from asnake.client import ASnakeClient
 from lxml import etree
 from requests_toolbelt.downloadutils import stream
 
 base_dir = os.path.normpath(os.path.abspath(os.path.join(os.path.dirname(__file__))))
+logging.basicConfig(filename='log.txt', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.INFO)
 
 class XMLException(Exception): pass
 class VersionException(Exception): pass
@@ -32,6 +34,7 @@ class Updater:
         self.digital_only = digital
         self.target_resource_id = resource
         self.digital_resource_id = resource_digital
+        self.log = logging.getLogger(__name__)
         self.config = configparser.ConfigParser()
         self.config.read('local_settings.cfg')
         self.data_root = self.config.get('DESTINATIONS', 'data')
@@ -58,10 +61,11 @@ class Updater:
         except Exception as e:
             raise Exception(e)
 
-    def _run(self, *args, **kwargs):
+    def _run(self):
         self.start_time = int(time.time())
         self.last_export_time = self.get_last_export_time()
         self.changed_list = []
+        self.log.info("Update started")
         if self.update_time:
             self.store_last_export_time()
         elif self.archival_only or self.library_only:
@@ -78,6 +82,7 @@ class Updater:
             self.store_last_export_time()
         if len(self.changed_list):
             self.version_data()
+        self.log.info("Update finished")
 
     def version_data(self):
         try:
@@ -100,6 +105,7 @@ class Updater:
             else:
                 if self.remove_file(os.path.join(self.ead_dir, r.id_0, "{}.xml".format(r.id_0))):
                     self.changed_list.append(r.uri)
+                    self.log.debug("Resource {} was unpublished and removed".format(r.id_0))
 
     def export_resources_from_objects(self, updated=0):
         for o in self.as_repo.archival_objects.with_params(all_ids=True, modified_since=updated):
@@ -110,9 +116,11 @@ class Updater:
             else:
                 if self.remove_file(os.path.join(self.ead_dir, r.id_0, "{}.xml".format(r.id_0))):
                     self.changed_list.append(r.uri)
+                    self.log.debug("Resource {} was unpublished and removed".format(r.id_0))
 
     def export_digital_objects(self, updated=0, resource=None):
         if resource:
+            self.log.debug("Exporting digital objects for resource {}".format(resource))
             digital_objects = []
             tree = self.as_repo.resources(resource).tree
             for component in tree.walk:
@@ -120,6 +128,7 @@ class Updater:
                     if instance.digital_object:
                         digital_objects.append(instance.digital_object)
         else:
+            self.log.debug("Exporting digital objects updated since {}".format(updated))
             digital_objects = self.as_repo.digital_objects.with_params(all_ids=True, modified_since=updated)
         for d in digital_objects:
             if d.publish:
@@ -127,6 +136,7 @@ class Updater:
             else:
                 if self.remove_file(os.path.join(self.mets_dir, d.digital_object_id, "{}.xml".format(d.digital_object_id))):
                     self.changed_list.append(d.uri)
+                    self.log.debug("Digital object {} was unpublished and removed".format(d.digital_object_id))
 
     def save_ead(self, resource):
         target_dir = self.make_target_dir(os.path.join(self.ead_dir, resource.id_0))
@@ -135,9 +145,11 @@ class Updater:
                                   '/repositories/{}/resource_descriptions/{}.xml'
                                     .format(self.repository, os.path.split(resource.uri)[1]))
             self.changed_list.append(resource.uri)
+            self.log.debug("EAD file {} saved".format(resource.id_0))
         except Exception as e:
             if self.remove_file(os.path.join(target_dir, "{}.xml".format(resource.id_0))):
                 self.changed_list.append(resource.uri)
+                self.log.debug("Error saving EAD file {}: {}".format(resource.id_0, e))
 
     def save_mods(self, resource):
         target_dir = self.make_target_dir(os.path.join(self.mods_dir, resource.id_0))
@@ -147,9 +159,11 @@ class Updater:
                                     .format(self.repository, os.path.split(resource.uri)[1]),
                                   mods=True)
             self.changed_list.append(resource.uri)
+            self.log.debug("MODS file {} saved".format(resource.id_0))
         except Exception as e:
             if self.remove_file(os.path.join(target_dir, "{}.xml".format(resource.id_0))):
                 self.changed_list.append(resource.uri)
+                self.log.debug("Error saving MODS file {}: {}".format(resource.id_0, e))
 
     def save_mets(self, digital):
         target_dir = self.make_target_dir(os.path.join(self.mets_dir, digital.digital_object_id))
@@ -158,23 +172,28 @@ class Updater:
                                   '/repositories/{}/digital_objects/mets/{}.xml'
                                     .format(self.repository, os.path.split(digital.uri)[1]))
             self.changed_list.append(digital.uri)
+            self.log.debug("METS file {} saved".format(digital.digital_object_id))
         except Exception as e:
             if self.remove_file(os.path.join(target_dir, "{}.xml".format(digital.digital_object_id))):
                 self.changed_list.append(digital.uri)
+                self.log.debug("Error saving METS file {}: {}".format(digital.digital_object_id, e))
 
     def save_pdf(self, resource):
         target_dir = self.make_target_dir(os.path.join(self.pdf_dir, resource.id_0))
         subprocess.call(['java', '-jar', 'ead2pdf.jar',
                          os.path.join(self.ead_dir, resource.id_0, "{}.xml".format(resource.id_0)),
                          os.path.join(target_dir, "{}.pdf".format(resource.id_0))])
+        self.log.debug("PDF for {} generated".format(resource.id_0))
 
     def remove_file(self, file_path):
         if os.path.isfile(file_path):
             shutil.rmtree(os.path.split(file_path)[0])
+            self.log.debug("{} removed".format(file_path))
             if self.ead_dir in file_path:
                 pdf_path = file_path.replace(self.ead_dir, self.pdf_dir).replace('.xml', '.pdf')
                 if os.path.isfile(pdf_path):
                     shutil.rmtree(os.path.split(pdf_path)[0])
+                    self.log.debug("{} removed".format(pdf_path))
             return True
         return False
 
@@ -207,6 +226,7 @@ class Updater:
     def store_last_export_time(self):
         with open(self.last_export_filepath, 'w') as f:
             f.write(str(self.start_time))
+        self.log.debug("Last export time updated to {}".format(self.start_time))
 
     def save_xml_to_file(self, filepath, uri, mods=False):
         try:
@@ -232,8 +252,7 @@ def main():
     parser.add_argument('--resource_digital', help='Exports the digital objects associated with a resource record only')
     args = parser.parse_args()
 
-    Updater(update_time=args.update_time, archival_only=args.archival_only,
-            library_only=args.library_only, digital_only=args.digital_only,
+    Updater(update_time=args.update_time, archival=args.archival, library=args.library, digital=args.digital,
             resource=args.resource, resource_digital=args.resource_digital)._run()
 
 main()
