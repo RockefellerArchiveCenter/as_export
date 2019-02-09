@@ -3,3 +3,5 @@ log.txt
 last_export*
 *.pid
 *.pickle
+data/
+pdf/
