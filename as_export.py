@@ -19,24 +19,21 @@ class VersionException(Exception): pass
 
 
 class Updater:
-    def __init__(self, update_time=False, archival_only=False, library_only=False,
-                 digital_only=False, resource=False, resource_digital=False):
+    def __init__(self, update_time=False, archival=False, library=False,
+                 digital=False, resource=False, resource_digital=False):
         self.pid_filepath = 'daemon.pid'
         if self.is_running():
             raise Exception("Process is still running.")
         else:
             self.write_pid()
         self.update_time = update_time
-        self.archival_only = archival_only
-        self.library_only = library_only
-        self.digital_only = digital_only
+        self.archival_only = archival
+        self.library_only = library
+        self.digital_only = digital
         self.target_resource_id = resource
         self.digital_resource_id = resource_digital
         self.config = configparser.ConfigParser()
         self.config.read('local_settings.cfg')
-        self.unpublished = self.config.get('EAD', 'unpublished')
-        self.include_daos = self.config.get('EAD', 'daos')
-        self.numbered_cs = self.config.get('EAD', 'numbered')
         self.data_root = self.config.get('DESTINATIONS', 'data')
         self.ead_dir = os.path.join(self.data_root, self.config.get('DESTINATIONS', 'ead'))
         self.mets_dir = os.path.join(self.data_root, self.config.get('DESTINATIONS', 'mets'))
@@ -48,10 +45,10 @@ class Updater:
             if not os.path.isdir(dir):
                 os.makedirs(dir)
         try:
-            self.aspace = ASpace(
+            self.as_repo = ASpace(
                 baseurl=self.config.get('ARCHIVESSPACE', 'baseurl'),
                 user=self.config.get('ARCHIVESSPACE', 'user'),
-                password=self.config.get('ARCHIVESSPACE', 'password')).repositories(self.config.get('ARCHIVESSPACE', 'repository'))
+                password=self.config.get('ARCHIVESSPACE', 'password')).repositories(self.repository)
             self.client = ASnakeClient(
                 baseurl=self.config.get('ARCHIVESSPACE', 'baseurl'),
                 user=self.config.get('ARCHIVESSPACE', 'user'),
@@ -64,10 +61,7 @@ class Updater:
     def _run(self, *args, **kwargs):
         self.start_time = int(time.time())
         self.last_export_time = self.get_last_export_time()
-        self.resource_export_list = []
-        self.resource_delete_list = []
-        self.digital_export_list = []
-        self.digital_delete_list = []
+        self.changed_list = []
         if self.update_time:
             self.store_last_export_time()
         elif self.archival_only or self.library_only:
@@ -75,14 +69,14 @@ class Updater:
         elif self.digital_only or self.digital_resource_id:
             self.export_digital_objects(resource=self.digital_resource_id)
         elif self.target_resource_id:
-            r = self.aspace.resources(self.target_resource_id)
+            r = self.as_repo.resources(self.target_resource_id)
             self.save_ead(r)
         else:
             self.export_resources(archival=True, library=True, updated=self.last_export_time)
             self.export_resources_from_objects(updated=self.last_export_time)
             self.export_digital_objects(updated=self.last_export_time)
             self.store_last_export_time()
-        if len(self.resource_export_list + self.resource_delete_list + self.digital_export_list + self.digital_delete_list):
+        if len(self.changed_list):
             self.version_data()
 
     def version_data(self):
@@ -96,7 +90,7 @@ class Updater:
             raise VersionException(e)
 
     def export_resources(self, archival=False, library=False, updated=0):
-        for r in self.aspace.resources.with_params(all_ids=True, modified_since=updated):
+        for r in self.as_repo.resources.with_params(all_ids=True, modified_since=updated):
             if r.publish:
                 if archival and r.id_0.startswith('FA'):
                     self.save_ead(r)
@@ -105,35 +99,34 @@ class Updater:
                     self.save_mods(r)
             else:
                 if self.remove_file(os.path.join(self.ead_dir, r.id_0, "{}.xml".format(r.id_0))):
-                    self.resource_delete_list.append(r.uri)
+                    self.changed_list.append(r.uri)
 
     def export_resources_from_objects(self, updated=0):
-        for o in self.aspace.archival_objects.with_params(all_ids=True, modified_since=updated):
-            r = self.aspace.archival_objects(o).resource
-            if r.publish:
-                if r.uri not in (self.resource_export_list + self.resource_delete_list):
+        for o in self.as_repo.archival_objects.with_params(all_ids=True, modified_since=updated):
+            r = self.as_repo.archival_objects(o).resource
+            if r.publish and r.uri not in self.changed_list:
                     self.save_ead(r)
                     self.save_pdf(r)
             else:
                 if self.remove_file(os.path.join(self.ead_dir, r.id_0, "{}.xml".format(r.id_0))):
-                    self.resource_delete_list.append(r.uri)
+                    self.changed_list.append(r.uri)
 
     def export_digital_objects(self, updated=0, resource=None):
         if resource:
             digital_objects = []
-            tree = self.aspace.resources(resource).tree
+            tree = self.as_repo.resources(resource).tree
             for component in tree.walk:
                 for instance in component.instances:
                     if instance.digital_object:
                         digital_objects.append(instance.digital_object)
         else:
-            digital_objects = self.aspace.digital_objects.with_params(all_ids=True, modified_since=updated)
+            digital_objects = self.as_repo.digital_objects.with_params(all_ids=True, modified_since=updated)
         for d in digital_objects:
             if d.publish:
                 self.save_mets(d)
             else:
                 if self.remove_file(os.path.join(self.mets_dir, d.digital_object_id, "{}.xml".format(d.digital_object_id))):
-                    self.digital_delete_list.append(d.uri)
+                    self.changed_list.append(d.uri)
 
     def save_ead(self, resource):
         target_dir = self.make_target_dir(os.path.join(self.ead_dir, resource.id_0))
@@ -141,10 +134,10 @@ class Updater:
             self.save_xml_to_file(os.path.join(target_dir, "{}.xml".format(resource.id_0)),
                                   '/repositories/{}/resource_descriptions/{}.xml'
                                     .format(self.repository, os.path.split(resource.uri)[1]))
-            self.resource_export_list.append(resource.uri)
+            self.changed_list.append(resource.uri)
         except Exception as e:
             if self.remove_file(os.path.join(target_dir, "{}.xml".format(resource.id_0))):
-                self.resource_delete_list.append(resource.uri)
+                self.changed_list.append(resource.uri)
 
     def save_mods(self, resource):
         target_dir = self.make_target_dir(os.path.join(self.mods_dir, resource.id_0))
@@ -153,10 +146,10 @@ class Updater:
                                   '/repositories/{}/resource_descriptions/{}.xml'
                                     .format(self.repository, os.path.split(resource.uri)[1]),
                                   mods=True)
-            self.resource_export_list.append(resource.uri)
+            self.changed_list.append(resource.uri)
         except Exception as e:
             if self.remove_file(os.path.join(target_dir, "{}.xml".format(resource.id_0))):
-                self.resource_delete_list.append(resource.uri)
+                self.changed_list.append(resource.uri)
 
     def save_mets(self, digital):
         target_dir = self.make_target_dir(os.path.join(self.mets_dir, digital.digital_object_id))
@@ -164,10 +157,10 @@ class Updater:
             self.save_xml_to_file(os.path.join(target_dir, "{}.xml".format(digital.digital_object_id)),
                                   '/repositories/{}/digital_objects/mets/{}.xml'
                                     .format(self.repository, os.path.split(digital.uri)[1]))
-            self.digital_export_list.append(digital.uri)
+            self.changed_list.append(digital.uri)
         except Exception as e:
             if self.remove_file(os.path.join(target_dir, "{}.xml".format(digital.digital_object_id))):
-                self.digital_delete_list.append(digital.uri)
+                self.changed_list.append(digital.uri)
 
     def save_pdf(self, resource):
         target_dir = self.make_target_dir(os.path.join(self.pdf_dir, resource.id_0))
@@ -218,9 +211,9 @@ class Updater:
     def save_xml_to_file(self, filepath, uri, mods=False):
         try:
             with open(filepath, 'wb') as f:
-                xml = self.client.get(uri, params={"include_unpublished": self.unpublished,
-                                                   "include_daos": self.include_daos,
-                                                   "numbered_cs": self.numbered_cs})
+                xml = self.client.get(uri, params={"include_unpublished": self.config.get('EAD', 'unpublished'),
+                                                   "include_daos": self.config.get('EAD', 'daos'),
+                                                   "numbered_cs": self.config.get('EAD', 'numbered')})
                 parser = etree.XMLParser(resolve_entities=False, strip_cdata=False, remove_blank_text=True)
                 parsed = etree.fromstring(xml.text.encode(), parser)
                 xsl = etree.XSLT(etree.parse('ead_to_mods.xsl'))
@@ -232,9 +225,9 @@ class Updater:
 def main():
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--update_time', action='store_true', help='Updates last_export time and exits')
-    parser.add_argument('--archival_only', action='store_true', help='Exports finding aids only')
-    parser.add_argument('--library_only', action='store_true', help='Exports library records only')
-    parser.add_argument('--digital_only', action='store_true', help='Exports digital objects only')
+    parser.add_argument('--archival', action='store_true', help='Exports finding aids only')
+    parser.add_argument('--library', action='store_true', help='Exports library records only')
+    parser.add_argument('--digital', action='store_true', help='Exports digital objects only')
     parser.add_argument('--resource', help='Exports a single resource record only')
     parser.add_argument('--resource_digital', help='Exports the digital objects associated with a resource record only')
     args = parser.parse_args()
