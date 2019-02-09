@@ -2,17 +2,14 @@
 
 import argparse
 import os
-import json
 import time
 import configparser
 import shutil
 import subprocess
 import random
-from io import BytesIO
 from asnake.aspace import ASpace
 from asnake.client import ASnakeClient
 from lxml import etree
-from requests_toolbelt import exceptions
 from requests_toolbelt.downloadutils import stream
 
 base_dir = os.path.normpath(os.path.abspath(os.path.join(os.path.dirname(__file__))))
@@ -69,8 +66,8 @@ class Updater:
         self.last_export_time = self.get_last_export_time()
         self.resource_export_list = []
         self.resource_delete_list = []
-        self.do_export_list = []
-        self.do_delete_list = []
+        self.digital_export_list = []
+        self.digital_delete_list = []
         if self.update_time:
             self.store_last_export_time()
         elif self.archival_only or self.library_only:
@@ -78,14 +75,14 @@ class Updater:
         elif self.digital_only or self.digital_resource_id:
             self.export_digital_objects(resource=self.digital_resource_id)
         elif self.target_resource_id:
-            self.resource = self.aspace.resources(self.target_resource_id).json()
-            self.save_ead(self.target_resource_id)
+            r = self.aspace.resources(self.target_resource_id)
+            self.save_ead(r)
         else:
             self.export_resources(archival=True, library=True, updated=self.last_export_time)
             self.export_resources_from_objects(updated=self.last_export_time)
             self.export_digital_objects(updated=self.last_export_time)
             self.store_last_export_time()
-        if len(self.resource_export_list + self.resource_delete_list + self.do_export_list + self.do_delete_list):
+        if len(self.resource_export_list + self.resource_delete_list + self.digital_export_list + self.digital_delete_list):
             self.version_data()
 
     def version_data(self):
@@ -112,8 +109,7 @@ class Updater:
 
     def export_resources_from_objects(self, updated=0):
         for o in self.aspace.archival_objects.with_params(all_ids=True, modified_since=updated):
-            resource_ref = self.aspace.archival_objects(o).json()["resource"]["ref"]
-            r = self.aspace.resources(resource_ref)
+            r = self.aspace.archival_objects(o).resource
             if r.publish:
                 if r.uri not in (self.resource_export_list + self.resource_delete_list):
                     self.save_ead(r)
@@ -137,7 +133,7 @@ class Updater:
                 self.save_mets(d)
             else:
                 if self.remove_file(os.path.join(self.mets_dir, d.digital_object_id, "{}.xml".format(d.digital_object_id))):
-                    self.do_delete_list.append(d.uri)
+                    self.digital_delete_list.append(d.uri)
 
     def save_ead(self, resource):
         target_dir = self.make_target_dir(os.path.join(self.ead_dir, resource.id_0))
@@ -146,9 +142,7 @@ class Updater:
                                   '/repositories/{}/resource_descriptions/{}.xml'
                                     .format(self.repository, os.path.split(resource.uri)[1]))
             self.resource_export_list.append(resource.uri)
-        except exceptions.StreamingError as e:
-            logging.warning(e.message)
-        except XMLException as e:
+        except Exception as e:
             if self.remove_file(os.path.join(target_dir, "{}.xml".format(resource.id_0))):
                 self.resource_delete_list.append(resource.uri)
 
@@ -170,10 +164,10 @@ class Updater:
             self.save_xml_to_file(os.path.join(target_dir, "{}.xml".format(digital.digital_object_id)),
                                   '/repositories/{}/digital_objects/mets/{}.xml'
                                     .format(self.repository, os.path.split(digital.uri)[1]))
-            self.do_export_list.append(digital.uri)
+            self.digital_export_list.append(digital.uri)
         except Exception as e:
             if self.remove_file(os.path.join(target_dir, "{}.xml".format(digital.digital_object_id))):
-                self.do_delete_list.append(digital.uri)
+                self.digital_delete_list.append(digital.uri)
 
     def save_pdf(self, resource):
         target_dir = self.make_target_dir(os.path.join(self.pdf_dir, resource.id_0))
