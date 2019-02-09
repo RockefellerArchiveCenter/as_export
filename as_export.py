@@ -47,6 +47,9 @@ class Updater:
         self.pdf_dir = self.config.get('DESTINATIONS', 'pdf')
         self.last_export_filepath = self.config.get('LAST_EXPORT', 'filepath')
         self.repository = self.config.get('ARCHIVESSPACE', 'repository')
+        for dir in [self.data_root, self.pdf_dir]:
+            if not os.path.isdir(dir):
+                os.makedirs(dir)
         try:
             self.aspace = ASpace(
                 baseurl=self.config.get('ARCHIVESSPACE', 'baseurl'),
@@ -88,100 +91,95 @@ class Updater:
     def version_data(self):
         try:
             for d in [self.data_root, self.pdf_dir]:
-                os.chdir(d)
+                os.chdir(os.path.join(base_dir, d))
                 subprocess.call(['git', 'add', '.'])
                 subprocess.call(['git', 'commit', '-m', '{}'.format(random.choice(open(os.path.join(base_dir, 'quotes.txt')).readlines()))])
-                subprocess.call(['git', 'push'])
+                # subprocess.call(['git', 'push'])
         except Exception as e:
             raise VersionException(e)
 
     def export_resources(self, archival=False, library=False, updated=0):
         for r in self.aspace.resources.with_params(all_ids=True, modified_since=updated):
-            self.resource = r.json()
-            if self.resource['publish']:
-                if archival and self.resource['id_0'].startswith('FA'):
-                    self.save_ead(os.path.split(self.resource['uri'])[1])
-                    self.save_pdf(os.path.split(self.resource['uri'])[1])
-                elif library and self.resource['id_0'].startswith('LI'):
-                    self.save_mods(os.path.split(self.resource['uri'])[1])
+            if r.publish:
+                if archival and r.id_0.startswith('FA'):
+                    self.save_ead(r)
+                    self.save_pdf(r)
+                elif library and r.id_0.startswith('LI'):
+                    self.save_mods(r)
             else:
-                if self.remove_file(os.path.join(self.ead_dir, self.resource['id_0'], "{}.xml".format(self.resource['id_0']))):
-                    self.resource_delete_list.append(self.resource['uri'])
+                if self.remove_file(os.path.join(self.ead_dir, r.id_0, "{}.xml".format(r.id_0))):
+                    self.resource_delete_list.append(r.uri)
 
     def export_resources_from_objects(self, updated=0):
         for o in self.aspace.archival_objects.with_params(all_ids=True, modified_since=updated):
             resource_ref = self.aspace.archival_objects(o).json()["resource"]["ref"]
-            self.resource = self.aspace.resources(resource_ref).json()
-            if self.resource['publish']:
-                if self.resource["ref"] not in (self.resource_export_list + self.resource_delete_list):
-                    self.save_ead(os.path.split(self.resource['uri'])[1])
-                    self.save_pdf(os.path.split(self.resource['uri'])[1])
+            r = self.aspace.resources(resource_ref)
+            if r.publish:
+                if r.uri not in (self.resource_export_list + self.resource_delete_list):
+                    self.save_ead(r)
+                    self.save_pdf(r)
             else:
-                if self.remove_file(os.path.join(self.ead_dir, self.resource['id_0'], "{}.xml".format(self.resource['id_0']))):
-                    self.resource_delete_list.append(self.resource['uri'])
+                if self.remove_file(os.path.join(self.ead_dir, r.id_0, "{}.xml".format(r.id_0))):
+                    self.resource_delete_list.append(r.uri)
 
     def export_digital_objects(self, updated=0, resource=None):
         if resource:
-            do_ids = []
-            do_component_ids = []
-            tree = self.aspace.resources(resource).json()['tree']
+            digital_objects = []
+            tree = self.aspace.resources(resource).tree
             for component in tree.walk:
-                if 'digital_object' in component['instance_types']:
-                    do_component_ids.append(component['component_id'])
-            for do_id in do_component_ids:
-                component = self.aspace.archival_objects(do_id).json()
-                for instance in component['instances']:
-                    if instance['instance_type'] == 'digital_object':
-                        do_ids.append(os.path.split(instance['digital_object']['uri'])[1])
+                for instance in component.instances:
+                    if instance.digital_object:
+                        digital_objects.append(instance.digital_object)
         else:
-            do_ids = self.aspace.digital_objects.with_params(all_ids=True, modified_since=updated)
-        for d in do_ids:
-            self.digital_object = (d).json()
-            if self.digital_object['publish']:
-                self.save_mets(os.path.split(self.digital_object['uri'])[1])
+            digital_objects = self.aspace.digital_objects.with_params(all_ids=True, modified_since=updated)
+        for d in digital_objects:
+            if d.publish:
+                self.save_mets(d)
             else:
-                if self.remove_file(os.path.join(self.mets_dir, self.digital_object['digital_object_id'], "{}.xml".format(self.digital_object['digital_object_id']))):
-                    self.resource_delete_list.append(self.digital_object['uri'])
+                if self.remove_file(os.path.join(self.mets_dir, d.digital_object_id, "{}.xml".format(d.digital_object_id))):
+                    self.do_delete_list.append(d.uri)
 
-    def save_ead(self, resource_id):
-        target_dir = self.make_target_dir(os.path.join(self.ead_dir, self.resource['id_0']))
+    def save_ead(self, resource):
+        target_dir = self.make_target_dir(os.path.join(self.ead_dir, resource.id_0))
         try:
-            self.save_xml_to_file(os.path.join(target_dir, "{}.xml".format(self.resource['id_0'])),
-                                  '/repositories/{}/resource_descriptions/{}.xml'.format(self.repository, resource_id))
-            self.resource_export_list.append(self.resource['uri'])
+            self.save_xml_to_file(os.path.join(target_dir, "{}.xml".format(resource.id_0)),
+                                  '/repositories/{}/resource_descriptions/{}.xml'
+                                    .format(self.repository, os.path.split(resource.uri)[1]))
+            self.resource_export_list.append(resource.uri)
         except exceptions.StreamingError as e:
             logging.warning(e.message)
         except XMLException as e:
-            if self.remove_file(os.path.join(target_dir, "{}.xml".format(self.resource['id_0']))):
-                self.resource_delete_list.append(self.resource['uri'])
+            if self.remove_file(os.path.join(target_dir, "{}.xml".format(resource.id_0))):
+                self.resource_delete_list.append(resource.uri)
 
-    def save_mods(self, resource_id):
-        target_dir = self.make_target_dir(os.path.join(self.mods_dir, self.resource['id_0']))
+    def save_mods(self, resource):
+        target_dir = self.make_target_dir(os.path.join(self.mods_dir, resource.id_0))
         try:
-            self.save_xml_to_file(os.path.join(target_dir, "{}.xml".format(self.resource['id_0'])),
-                                  '/repositories/{}/resource_descriptions/{}.xml'.format(self.repository, resource_id),
+            self.save_xml_to_file(os.path.join(target_dir, "{}.xml".format(resource.id_0)),
+                                  '/repositories/{}/resource_descriptions/{}.xml'
+                                    .format(self.repository, os.path.split(resource.uri)[1]),
                                   mods=True)
-            self.resource_export_list.append(self.resource['uri'])
+            self.resource_export_list.append(resource.uri)
         except Exception as e:
-            print(e)
-            if self.remove_file(os.path.join(target_dir, "{}.xml".format(self.resource['id_0']))):
-                self.resource_delete_list.append(self.resource['uri'])
+            if self.remove_file(os.path.join(target_dir, "{}.xml".format(resource.id_0))):
+                self.resource_delete_list.append(resource.uri)
 
-    def save_mets(self, digital_id):
-        target_dir = self.make_target_dir(os.path.join(self.mets_dir, self.digital_object['digital_object_id']))
+    def save_mets(self, digital):
+        target_dir = self.make_target_dir(os.path.join(self.mets_dir, digital.digital_object_id))
         try:
-            self.save_xml_to_file(os.path.join(target_dir, "{}.xml".format(self.digital_object['digital_object_id'])),
-                                  '/repositories/{}/digital_objects/mets/{}.xml'.format(self.repository, digital_id))
-            self.do_export_list.append(self.digital_object['uri'])
+            self.save_xml_to_file(os.path.join(target_dir, "{}.xml".format(digital.digital_object_id)),
+                                  '/repositories/{}/digital_objects/mets/{}.xml'
+                                    .format(self.repository, os.path.split(digital.uri)[1]))
+            self.do_export_list.append(digital.uri)
         except Exception as e:
-            if self.remove_file(os.path.join(target_dir, "{}.xml".format(self.digital_object['digital_object_id']))):
-                self.do_delete_list.append(self.digital_object['uri'])
+            if self.remove_file(os.path.join(target_dir, "{}.xml".format(digital.digital_object_id))):
+                self.do_delete_list.append(digital.uri)
 
-    def save_pdf(self, resource_id):
-        target_dir = self.make_target_dir(os.path.join(self.pdf_dir, self.resource['id_0']))
+    def save_pdf(self, resource):
+        target_dir = self.make_target_dir(os.path.join(self.pdf_dir, resource.id_0))
         subprocess.call(['java', '-jar', 'ead2pdf.jar',
-                         os.path.join(self.ead_dir, self.resource['id_0'], "{}.xml".format(self.resource['id_0'])),
-                         os.path.join(target_dir, "{}.pdf".format(self.resource['id_0']))])
+                         os.path.join(self.ead_dir, resource.id_0, "{}.xml".format(resource.id_0)),
+                         os.path.join(target_dir, "{}.pdf".format(resource.id_0))])
 
     def remove_file(self, file_path):
         if os.path.isfile(file_path):
@@ -213,10 +211,11 @@ class Updater:
             f.write(str(os.getpid()))
 
     def get_last_export_time(self):
+        last_export = 0
         if os.path.isfile(self.last_export_filepath):
             with open(self.last_export_filepath, 'r') as f:
                 last_export = f.read()
-        return int(last_export) if last_export else 0
+        return int(last_export)
 
     def store_last_export_time(self):
         with open(self.last_export_filepath, 'w') as f:
