@@ -14,7 +14,9 @@ from lxml import etree
 from requests_toolbelt.downloadutils import stream
 
 base_dir = os.path.normpath(os.path.abspath(os.path.join(os.path.dirname(__file__))))
-logging.basicConfig(filename='log.txt', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.INFO)
+logging.basicConfig(filename='log.txt', format='%(asctime)s %(message)s',
+                    datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.DEBUG)
+
 
 class XMLException(Exception): pass
 class VersionException(Exception): pass
@@ -62,10 +64,10 @@ class Updater:
             raise Exception(e)
 
     def _run(self):
+        self.log.info("Update started")
         self.start_time = int(time.time())
         self.last_export_time = self.get_last_export_time()
         self.changed_list = []
-        self.log.info("Update started")
         if self.update_time:
             self.store_last_export_time()
         elif self.archival_only or self.library_only:
@@ -75,6 +77,7 @@ class Updater:
         elif self.target_resource_id:
             r = self.as_repo.resources(self.target_resource_id)
             self.save_ead(r)
+            self.save_pdf(r)
         else:
             self.export_resources(archival=True, library=True, updated=self.last_export_time)
             self.export_resources_from_objects(updated=self.last_export_time)
@@ -82,7 +85,7 @@ class Updater:
             self.store_last_export_time()
         if len(self.changed_list):
             self.version_data()
-        self.log.info("Update finished")
+        self.log.info("Update finished, {} objects changed.".format(len(self.changed_list)))
 
     def version_data(self):
         try:
@@ -92,6 +95,7 @@ class Updater:
                 subprocess.call(['git', 'commit', '-m', '{}'.format(random.choice(open(os.path.join(base_dir, 'quotes.txt')).readlines()))])
                 # subprocess.call(['git', 'push'])
         except Exception as e:
+            self.log.error("Error versioning files: {}".format(e))
             raise VersionException(e)
 
     def export_resources(self, archival=False, library=False, updated=0):
@@ -125,7 +129,7 @@ class Updater:
             tree = self.as_repo.resources(resource).tree
             for component in tree.walk:
                 for instance in component.instances:
-                    if instance.digital_object:
+                    if instance.instance_type == 'digital_object':
                         digital_objects.append(instance.digital_object)
         else:
             self.log.debug("Exporting digital objects updated since {}".format(updated))
@@ -147,9 +151,9 @@ class Updater:
             self.changed_list.append(resource.uri)
             self.log.debug("EAD file {} saved".format(resource.id_0))
         except Exception as e:
+            self.log.error("Error saving EAD file {}: {}".format(resource.id_0, e))
             if self.remove_file(os.path.join(target_dir, "{}.xml".format(resource.id_0))):
                 self.changed_list.append(resource.uri)
-                self.log.debug("Error saving EAD file {}: {}".format(resource.id_0, e))
 
     def save_mods(self, resource):
         target_dir = self.make_target_dir(os.path.join(self.mods_dir, resource.id_0))
@@ -161,9 +165,9 @@ class Updater:
             self.changed_list.append(resource.uri)
             self.log.debug("MODS file {} saved".format(resource.id_0))
         except Exception as e:
+            self.log.error("Error saving MODS file {}: {}".format(resource.id_0, e))
             if self.remove_file(os.path.join(target_dir, "{}.xml".format(resource.id_0))):
                 self.changed_list.append(resource.uri)
-                self.log.debug("Error saving MODS file {}: {}".format(resource.id_0, e))
 
     def save_mets(self, digital):
         target_dir = self.make_target_dir(os.path.join(self.mets_dir, digital.digital_object_id))
@@ -174,9 +178,9 @@ class Updater:
             self.changed_list.append(digital.uri)
             self.log.debug("METS file {} saved".format(digital.digital_object_id))
         except Exception as e:
+            self.log.error("Error saving METS file {}: {}".format(digital.digital_object_id, e))
             if self.remove_file(os.path.join(target_dir, "{}.xml".format(digital.digital_object_id))):
                 self.changed_list.append(digital.uri)
-                self.log.debug("Error saving METS file {}: {}".format(digital.digital_object_id, e))
 
     def save_pdf(self, resource):
         target_dir = self.make_target_dir(os.path.join(self.pdf_dir, resource.id_0))
@@ -208,6 +212,8 @@ class Updater:
                 for line in f:
                     try:
                         os.kill(int(line.strip()), 0)
+                        self.log.error("Process is already running with PID {}".format(int(line.strip())))
+                        return True
                     except OSError:
                         pass
                 return False
@@ -239,6 +245,7 @@ class Updater:
                 xsl = etree.XSLT(etree.parse('ead_to_mods.xsl'))
                 f.write(xsl(parsed)) if mods else stream.stream_response_to_file(xml, path=f)
         except Exception as e:
+            self.log.error("XML error: {}".format(e))
             raise XMLException(e)
 
 
