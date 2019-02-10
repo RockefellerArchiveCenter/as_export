@@ -4,6 +4,8 @@ These scripts export updated data from ArchivesSpace and version all data in git
 ## Dependencies
 
 *   [Python 3.4 or higher](https://www.python.org/) Make sure you install the correct version. On some operating systems, this may require additional steps. It is also helpful to have [pip](https://pypi.python.org/pypi/pip) installed.
+*   [ArchivesSnake](https://github.com/archivesspace-labs/ArchivesSnake/)
+*   [lxml](https://lxml.de/)
 *   [requests_toolbelt](https://github.com/sigmavirus24/requests-toolbelt)
 *   [git](https://git-scm.com/)
 
@@ -55,9 +57,9 @@ These scripts export updated data from ArchivesSpace and version all data in git
           git config --global user.name "Your Name"
           git config --global user.email you@example.com
 
-5.  Set a cron job to run asExportIncremental.py at an interval of your choice. This should be done in the crontab of the user who's SSH key has been added to Github.
+5.  Set a cron job to run asExportIncremental.py at an interval of your choice. This should be done in the crontab of the user whose SSH key has been added to Github.
 
-The first time you run this, the script may take some time to execute, since it will attempt to export all published resource records in your ArchivesSpace repository. If you ever want to do a complete export, simply delete the Pickle file specified in `lastExportFilepath` and the `lastExport` variable will be set to zero (i.e. the epoch, which was long before ArchivesSpace or any of the resources in it existed).
+The first time you run this, the script may take some time to execute, since it will attempt to export all published resource records in your ArchivesSpace repository. If you ever want to do a complete export, simply delete `last_export.txt` and the `last_export` variable will be set to zero (i.e. the epoch, which was long before ArchivesSpace or any of the resources in it existed).
 
 ## Optional arguments
 The script supports a few arguments, which will include or exclude specific functions.
@@ -70,9 +72,10 @@ The script supports a few arguments, which will include or exclude specific func
 
 `--digital` exports METS for all digital object records, regardless of when those resources were last updated. When this argument is used, the script does not update the last run time.
 
+`--resource %identifier%` exports EAD for a specific resource record matching the ArchivesSpace  `%identifier%`, regardless of when that resource was last updated. When this argument is used, the script does not update the last run time.
+
 `--resource_digital %identifier%` exports METS digital object records associated with the the resource record matching the ArchivesSpace %identifier%, regardless of when those records were last updated. When this argument is used, the script does not update the last run time.
 
-`--resource %identifier%` exports EAD for a specific resource record matching the ArchivesSpace  `%identifier%`, regardless of when that resource was last updated. When this argument is used, the script does not update the last run time.
 
 ## What's here
 
