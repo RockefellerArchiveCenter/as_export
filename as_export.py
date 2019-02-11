@@ -50,16 +50,12 @@ class Updater:
             if not os.path.isdir(dir):
                 os.makedirs(dir)
         try:
-            self.as_repo = ASpace(
+            aspace = ASpace(
                 baseurl=self.config.get('ARCHIVESSPACE', 'baseurl'),
                 user=self.config.get('ARCHIVESSPACE', 'user'),
-                password=self.config.get('ARCHIVESSPACE', 'password')).repositories(self.repository)
-            self.client = ASnakeClient(
-                baseurl=self.config.get('ARCHIVESSPACE', 'baseurl'),
-                user=self.config.get('ARCHIVESSPACE', 'user'),
-                password=self.config.get('ARCHIVESSPACE', 'password')
-            )
-            self.client.authorize()
+                password=self.config.get('ARCHIVESSPACE', 'password'))
+            self.as_repo = aspace.repositories(self.repository)
+            self.client = aspace.client
         except Exception as e:
             raise Exception(e)
 
@@ -126,8 +122,7 @@ class Updater:
         if resource:
             self.log.debug("Exporting digital objects for resource {}".format(resource))
             digital_objects = []
-            tree = self.as_repo.resources(resource).tree
-            for component in tree.walk:
+            for component in self.as_repo.resources(resource).tree.walk:
                 for instance in component.instances:
                     if instance.instance_type == 'digital_object':
                         digital_objects.append(instance.digital_object)
