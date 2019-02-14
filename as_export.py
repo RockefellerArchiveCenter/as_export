@@ -9,13 +9,12 @@ import shutil
 import subprocess
 import time
 from asnake.aspace import ASpace
-from asnake.client import ASnakeClient
 from lxml import etree
 from requests_toolbelt.downloadutils import stream
 
 base_dir = os.path.normpath(os.path.abspath(os.path.join(os.path.dirname(__file__))))
 logging.basicConfig(filename='log.txt', format='%(asctime)s %(message)s',
-                    datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.DEBUG)
+                    datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.INFO)
 
 
 class XMLException(Exception): pass
@@ -109,8 +108,9 @@ class Updater:
 
     def export_resources_from_objects(self, updated=0):
         for o in self.as_repo.archival_objects.with_params(all_ids=True, modified_since=updated):
-            r = self.as_repo.archival_objects(o).resource
-            if r.publish and r.uri not in self.changed_list:
+            r = o.resource
+            if r.publish:
+                if r.uri not in self.changed_list:
                     self.save_ead(r)
                     self.save_pdf(r)
             else:
