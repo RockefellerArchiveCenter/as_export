@@ -1,5 +1,5 @@
 # Automated exports for ArchivesSpace
-These scripts export updated data from ArchivesSpace and version all data in git.
+These scripts export updated data from ArchivesSpace and version all data using git.
 
 ## Dependencies
 
@@ -57,14 +57,14 @@ These scripts export updated data from ArchivesSpace and version all data in git
           git config --global user.name "Your Name"
           git config --global user.email you@example.com
 
-5.  Set a cron job to run asExportIncremental.py at an interval of your choice. This should be done in the crontab of the user whose SSH key has been added to Github.
+5.  Set a cron job to run `as_export.py` at an interval of your choice. This should be done in the crontab of the user whose SSH key has been added to Github.
 
 The first time you run this, the script may take some time to execute, since it will attempt to export all published resource records in your ArchivesSpace repository. If you ever want to do a complete export, simply delete `last_export.txt` and the `last_export` variable will be set to zero (i.e. the epoch, which was long before ArchivesSpace or any of the resources in it existed).
 
 ## Optional arguments
-The script supports a few arguments, which will include or exclude specific functions.
+The script supports a few arguments, which will include or exclude specific functions. These arguments are also available via the command line by typing `as_export -h`.
 
-`--update_time` updates last exported time stored in external file to current time. Useful when you want to avoid exporting everything after you re-sequence your AS instance.
+`--update_time` updates last exported time stored in external file to current time. Useful when you want to avoid exporting everything after you've run reindexing when migrating to a new version.
 
 `--archival` exports EAD for all resource records whose id_0 does not start with 'LI', regardless of when those resources were last updated. When this argument is used, the script does not update the last run time.
 
