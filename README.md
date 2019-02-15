@@ -14,7 +14,7 @@ These scripts export updated data from ArchivesSpace and version all data using 
 1.  Install dependencies
 2.  Get a copy of the repo
 
-        git clone git@github.com:RockefellerArchiveCenter/asExportIncremental.git
+        git clone git@github.com:RockefellerArchiveCenter/as_export.git
 
     or just download the zip file of this repo
 3.  Create a local configuration file named `local_settings.cfg` in the same directory as the script and add variables. A sample file looks like this:
