@@ -1,14 +1,12 @@
 # Automated exports for ArchivesSpace
-These scripts export updated data from ArchivesSpace and version all data in git.
+These scripts export updated data from ArchivesSpace and version all data using git.
 
 ## Dependencies
 
-*   [Python 2.7 or higher](https://www.python.org/) Make sure you install the correct version. On some operating systems, this may require additional steps. It is also helpful to have [pip](https://pypi.python.org/pypi/pip) installed.
-*   [lxml](http://lxml.de/)
-*   [requests](http://www.python-requests.org/en/latest/)
+*   [Python 3.4 or higher](https://www.python.org/) Make sure you install the correct version. On some operating systems, this may require additional steps. It is also helpful to have [pip](https://pypi.python.org/pypi/pip) installed.
+*   [ArchivesSnake](https://github.com/archivesspace-labs/ArchivesSnake/)
+*   [lxml](https://lxml.de/)
 *   [requests_toolbelt](https://github.com/sigmavirus24/requests-toolbelt)
-*   [psutil](https://github.com/giampaolo/psutil)
-*   [gittle](https://github.com/FriendCode/gittle)
 *   [git](https://git-scm.com/)
 
 ## Getting Started
@@ -21,44 +19,26 @@ These scripts export updated data from ArchivesSpace and version all data in git
     or just download the zip file of this repo
 3.  Create a local configuration file named `local_settings.cfg` in the same directory as the script and add variables. A sample file looks like this:
 
-        [ArchivesSpace]
-        baseURL:http://localhost:8089
+        [ARCHIVESSPACE]
+        baseurl:http://localhost:8089
         repository:2
         user:admin
         password:admin
 
-        [EADexport]
-        exportUnpublished:false
-        exportDaos:true
-        exportNumbered:false
-        exportPdf:false
+        [EAD]
+        unpublished:false
+        daos:true
+        numbered:false
 
-        [LastExport]
-        filepath:lastExport.pickle
+        [LAST_EXPORT]
+        filepath:lastExport.txt
 
-        [PDFexport]
-        filepath:ead2pdf.jar
-
-        [MODSexport]
-        # EAD to MODS XSL filepath
-        filepath:eadToMods.xsl
-
-        [Git]
-        dataRemote:git@github.com:username/repository.git
-        PDFRemote:git@github.com:username/repository.git
-
-        [Logging]
-        filename:log.txt
-        format: %(asctime)s %(message)s
-        datefmt: %m/%d/%Y %I:%M:%S %p
-        level: WARNING
-
-        [Destinations]
-        dataDestination = /exports/data
-        EADdestination = /exports/data/ead
-        METSdestination = /exports/data/mets
-        MODSdestination = /exports/data/mods
-        PDFdestination = /exports/pdf
+        [DESTINATIONS]
+        data = data
+        ead = ead
+        mets = mets
+        mods = mods
+        pdf = pdf
 
 4.  Set up repositories
 
@@ -77,14 +57,14 @@ These scripts export updated data from ArchivesSpace and version all data in git
           git config --global user.name "Your Name"
           git config --global user.email you@example.com
 
-5.  Set a cron job to run asExportIncremental.py at an interval of your choice. This should be done in the crontab of the user who's SSH key has been added to Github.
+5.  Set a cron job to run `as_export.py` at an interval of your choice. This should be done in the crontab of the user whose SSH key has been added to Github.
 
-The first time you run this, the script may take some time to execute, since it will attempt to export all published resource records in your ArchivesSpace repository. If you ever want to do a complete export, simply delete the Pickle file specified in `lastExportFilepath` and the `lastExport` variable will be set to zero (i.e. the epoch, which was long before ArchivesSpace was a twinkle in [anarchivist's](https://github.com/anarchivist) eye).
+The first time you run this, the script may take some time to execute, since it will attempt to export all published resource records in your ArchivesSpace repository. If you ever want to do a complete export, simply delete `last_export.txt` and the `last_export` variable will be set to zero (i.e. the epoch, which was long before ArchivesSpace or any of the resources in it existed).
 
 ## Optional arguments
-The script supports a few arguments, which will include or exclude specific functions.
+The script supports a few arguments, which will include or exclude specific functions. These arguments are also available via the command line by typing `as_export -h`.
 
-`--update_time` updates last exported time stored in external file to current time. Useful when you want to avoid exporting everything after you re-sequence your AS instance.
+`--update_time` updates last exported time stored in external file to current time. Useful when you want to avoid exporting everything after you've run reindexing when migrating to a new version.
 
 `--archival` exports EAD for all resource records whose id_0 does not start with 'LI', regardless of when those resources were last updated. When this argument is used, the script does not update the last run time.
 
@@ -92,17 +72,21 @@ The script supports a few arguments, which will include or exclude specific func
 
 `--digital` exports METS for all digital object records, regardless of when those resources were last updated. When this argument is used, the script does not update the last run time.
 
-`--digital --resource %identifier%` exports METS digital object records associated with the the resource record whose id_0 matches %identifier%, regardless of when those records were last updated. When this argument is used, the script does not update the last run time.
+`--resource %identifier%` exports EAD for a specific resource record matching the ArchivesSpace  `%identifier%`, regardless of when that resource was last updated. When this argument is used, the script does not update the last run time.
 
-`--resource %identifier%` exports EAD for the resource record whose `id_0` contains `%identifier%`, regardless of when those resources were last updated. This argument supports partial matches, for example if `FA00` is entered as the identifier, any resources whose `id_0` contains `FA00` would be exported, including for example `FA001`, `FA002` or `xFA001`. When this argument is used, the script does not update the last run time.
+`--resource_digital %identifier%` exports METS digital object records associated with the the resource record matching the ArchivesSpace %identifier%, regardless of when those records were last updated. When this argument is used, the script does not update the last run time.
+
 
 ## What's here
 
-### asExportIncremental.py
+### as_export.py
 Exports EAD files from published resource records updated since last export (including updates to any child components or associated agents and subjects), as well as METS records for digital object records associated with those resource records. If a resource record is unpublished, this script will remove the EAD, PDF and any associated METS records. Exported or deleted files are logged to a text file `log.txt`. (Python)
 
 ### ead2pdf.jar
 Creates PDFs from an EAD file, forked from [ead2pdf](http://github.com/archivesspace/ead2pdf/) which includes the [Rockefeller Archive Center](https://github.com/RockefellerArchiveCenter) logo. You may want to replace this file and recompile the .jar for your local institution. (Java)
+
+### ead_to_mods.xsl
+Transforms a valid EAD file into a MODS file with all the fields necessary for local Rockefeller Archive Center requirements.
 
 ## License
 This code is released under the MIT License. See `LICENSE.md` for more information.
