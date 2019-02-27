@@ -88,7 +88,7 @@ class Updater:
                 os.chdir(os.path.join(base_dir, d))
                 subprocess.call(['git', 'add', '.'])
                 subprocess.call(['git', 'commit', '-m', '{}'.format(random.choice(open(os.path.join(base_dir, 'quotes.txt')).readlines()))])
-                # subprocess.call(['git', 'push'])
+                subprocess.call(['git', 'push'])
         except Exception as e:
             self.log.error("Error versioning files: {}".format(e))
             raise VersionException(e)
