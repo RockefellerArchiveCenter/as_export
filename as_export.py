@@ -24,7 +24,7 @@ class VersionException(Exception): pass
 class Updater:
     def __init__(self, update_time=False, archival=False, library=False,
                  digital=False, resource=False, resource_digital=False):
-        self.pid_filepath = 'daemon.pid'
+        self.pid_filepath = os.path.join(base_dir, 'daemon.pid')
         if self.is_running():
             raise Exception("Process is still running.")
         else:
@@ -37,7 +37,7 @@ class Updater:
         self.digital_resource_id = resource_digital
         self.log = logging.getLogger(__name__)
         self.config = configparser.ConfigParser()
-        self.config.read('local_settings.cfg')
+        self.config.read(os.path.join(base_dir, 'local_settings.cfg'))
         self.data_root = self.config.get('DESTINATIONS', 'data')
         self.ead_dir = os.path.join(self.data_root, self.config.get('DESTINATIONS', 'ead'))
         self.mets_dir = os.path.join(self.data_root, self.config.get('DESTINATIONS', 'mets'))
