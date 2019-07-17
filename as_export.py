@@ -86,6 +86,7 @@ class Updater:
         try:
             for d in [self.data_root, self.pdf_dir]:
                 os.chdir(os.path.join(base_dir, d))
+                subprocess.call(['git', 'add', '.'])
                 subprocess.call(['git', 'commit', '-a', '-m', '{}'.format(random.choice(open(os.path.join(base_dir, 'quotes.txt')).readlines()))])
                 subprocess.call(['git', 'push'])
         except Exception as e:
