@@ -5,7 +5,6 @@ These scripts export updated data from ArchivesSpace and version all data using 
 
 *   [Python 3.4 or higher](https://www.python.org/) Make sure you install the correct version. On some operating systems, this may require additional steps. It is also helpful to have [pip](https://pypi.python.org/pypi/pip) installed.
 *   [ArchivesSnake](https://github.com/archivesspace-labs/ArchivesSnake/)
-*   [lxml](https://lxml.de/)
 *   [requests_toolbelt](https://github.com/sigmavirus24/requests-toolbelt)
 *   [git](https://git-scm.com/)
 
@@ -37,8 +36,6 @@ These scripts export updated data from ArchivesSpace and version all data using 
         data = data
         ead = ead
         mets = mets
-        mods = mods
-        pdf = pdf
 
 4.  Set up repositories
 
@@ -66,10 +63,6 @@ The script supports a few arguments, which will include or exclude specific func
 
 `--update_time` updates last exported time stored in external file to current time. Useful when you want to avoid exporting everything after you've run reindexing when migrating to a new version.
 
-`--archival` exports EAD for all resource records whose id_0 does not start with 'LI', regardless of when those resources were last updated. When this argument is used, the script does not update the last run time.
-
-`--library` exports MODS for all resource records whose id_0 starts with 'LI', regardless of when those resources were last updated. When this argument is used, the script does not update the last run time.
-
 `--digital` exports METS for all digital object records, regardless of when those resources were last updated. When this argument is used, the script does not update the last run time.
 
 `--resource %identifier%` exports EAD for a specific resource record matching the ArchivesSpace  `%identifier%`, regardless of when that resource was last updated. When this argument is used, the script does not update the last run time.
@@ -81,12 +74,6 @@ The script supports a few arguments, which will include or exclude specific func
 
 ### as_export.py
 Exports EAD files from published resource records updated since last export (including updates to any child components or associated agents and subjects), as well as METS records for digital object records associated with those resource records. If a resource record is unpublished, this script will remove the EAD, PDF and any associated METS records. Exported or deleted files are logged to a text file `log.txt`. (Python)
-
-### ead2pdf.jar
-Creates PDFs from an EAD file, forked from [ead2pdf](http://github.com/archivesspace/ead2pdf/) which includes the [Rockefeller Archive Center](https://github.com/RockefellerArchiveCenter) logo. You may want to replace this file and recompile the .jar for your local institution. (Java)
-
-### ead_to_mods.xsl
-Transforms a valid EAD file into a MODS file with all the fields necessary for local Rockefeller Archive Center requirements.
 
 ## License
 This code is released under the MIT License. See `LICENSE.md` for more information.
