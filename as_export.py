@@ -98,7 +98,7 @@ class Updater:
                 if r.uri not in self.changed_list:
                     self.save_ead(r)
             else:
-                if self.remove_file(os.path.join(self.ead_dir, r.id_0, "{}.xml".format(r.id_0))):
+                if self.remove_file(os.path.join(self.ead_dir, "{}.xml".format(r.id_0))):
                     self.changed_list.append(r.uri)
                     self.log.debug("Resource {} was unpublished and removed".format(r.id_0))
 
@@ -117,34 +117,32 @@ class Updater:
             if d.publish:
                 self.save_mets(d)
             else:
-                if self.remove_file(os.path.join(self.mets_dir, d.digital_object_id, "{}.xml".format(d.digital_object_id))):
+                if self.remove_file(os.path.join(self.mets_dir, "{}.xml".format(d.digital_object_id))):
                     self.changed_list.append(d.uri)
                     self.log.debug("Digital object {} was unpublished and removed".format(d.digital_object_id))
 
     def save_ead(self, resource):
-        target_dir = self.make_target_dir(os.path.join(self.ead_dir, resource.id_0))
         try:
-            self.save_xml_to_file(os.path.join(target_dir, "{}.xml".format(resource.id_0)),
+            self.save_xml_to_file(os.path.join(self.ead_dir, "{}.xml".format(resource.id_0)),
                                   '/repositories/{}/resource_descriptions/{}.xml'
                                     .format(self.repository, os.path.split(resource.uri)[1]))
             self.changed_list.append(resource.uri)
             self.log.debug("EAD file {} saved".format(resource.id_0))
         except Exception as e:
             self.log.error("Error saving EAD file {}: {}".format(resource.id_0, e))
-            if self.remove_file(os.path.join(target_dir, "{}.xml".format(resource.id_0))):
+            if self.remove_file(os.path.join(self.ead_dir, "{}.xml".format(resource.id_0))):
                 self.changed_list.append(resource.uri)
 
     def save_mets(self, digital):
-        target_dir = self.make_target_dir(os.path.join(self.mets_dir, digital.digital_object_id))
         try:
-            self.save_xml_to_file(os.path.join(target_dir, "{}.xml".format(digital.digital_object_id)),
+            self.save_xml_to_file(os.path.join(self.mets_dir, "{}.xml".format(digital.digital_object_id)),
                                   '/repositories/{}/digital_objects/mets/{}.xml'
                                     .format(self.repository, os.path.split(digital.uri)[1]))
             self.changed_list.append(digital.uri)
             self.log.debug("METS file {} saved".format(digital.digital_object_id))
         except Exception as e:
             self.log.error("Error saving METS file {}: {}".format(digital.digital_object_id, e))
-            if self.remove_file(os.path.join(target_dir, "{}.xml".format(digital.digital_object_id))):
+            if self.remove_file(os.path.join(self.mets_dir, "{}.xml".format(digital.digital_object_id))):
                 self.changed_list.append(digital.uri)
 
     def remove_file(self, file_path):
@@ -153,11 +151,6 @@ class Updater:
             self.log.debug("{} removed".format(file_path))
             return True
         return False
-
-    def make_target_dir(self, target):
-        if not os.path.exists(target):
-            os.makedirs(target)
-        return target
 
     def is_running(self):
         if os.path.isfile(self.pid_filepath):
