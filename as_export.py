@@ -87,7 +87,7 @@ class Updater:
             if r.publish:
                 self.save_ead(r)
             else:
-                if self.remove_file(os.path.join(self.ead_dir, r.id_0, "{}.xml".format(r.id_0))):
+                if self.remove_file(os.path.join(self.ead_dir, "{}.xml".format(r.id_0))):
                     self.changed_list.append(r.uri)
                     self.log.debug("Resource {} was unpublished and removed".format(r.id_0))
 
@@ -147,7 +147,7 @@ class Updater:
 
     def remove_file(self, file_path):
         if os.path.isfile(file_path):
-            shutil.rmtree(os.path.split(file_path)[0])
+            os.remove(file_path)
             self.log.debug("{} removed".format(file_path))
             return True
         return False
