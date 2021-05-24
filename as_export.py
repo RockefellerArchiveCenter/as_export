@@ -107,7 +107,7 @@ class Updater:
         if resource:
             self.log.debug("Exporting digital objects for resource {}".format(resource))
             digital_objects = []
-            for component in walk_tree("{}/resources/{}".format(self.as_repo.uri, resource), client):
+            for component in walk_tree("{}/resources/{}".format(self.as_repo.uri, resource), self.client):
                 for instance in component['instances']:
                     if instance['instance_type'] == 'digital_object':
                         digital_objects.append(self.client.get(instance['digital_object']['ref']).json())
