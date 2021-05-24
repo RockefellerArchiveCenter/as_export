@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import time
 from asnake.aspace import ASpace
+from asnake.utils import walk_tree
 from requests_toolbelt.downloadutils import stream
 
 base_dir = os.path.normpath(os.path.abspath(os.path.join(os.path.dirname(__file__))))
@@ -59,14 +60,14 @@ class Updater:
         if self.update_time:
             self.store_last_export_time()
         elif self.digital_only or self.digital_resource_id:
-            self.export_digital_objects(resource=self.digital_resource_id)
+            self.export_digital_objects(self.client, resource=self.digital_resource_id)
         elif self.target_resource_id:
             r = self.as_repo.resources(self.target_resource_id)
             self.save_ead(r)
         else:
             self.export_resources(updated=self.last_export_time)
             self.export_resources_from_objects(updated=self.last_export_time)
-            self.export_digital_objects(updated=self.last_export_time)
+            self.export_digital_objects(self.client, updated=self.last_export_time)
             self.store_last_export_time()
         if len(self.changed_list):
             self.version_data()
@@ -102,14 +103,14 @@ class Updater:
                     self.changed_list.append(r.uri)
                     self.log.debug("Resource {} was unpublished and removed".format(r.id_0))
 
-    def export_digital_objects(self, updated=0, resource=None):
+    def export_digital_objects(self, client, updated=0, resource=None):
         if resource:
             self.log.debug("Exporting digital objects for resource {}".format(resource))
             digital_objects = []
-            for component in self.as_repo.resources(resource).tree.walk:
-                for instance in component.instances:
-                    if instance.instance_type == 'digital_object':
-                        digital_objects.append(instance.digital_object)
+            for component in walk_tree('{}/resources/{}'.format(self.as_repo.uri, resource), client):
+                for instance in component['instances']:
+                    if instance['instance_type'] == 'digital_object':
+                        digital_objects.append(instance['digital_object'])
         else:
             self.log.debug("Exporting digital objects updated since {}".format(updated))
             digital_objects = self.as_repo.digital_objects.with_params(all_ids=True, modified_since=updated)
