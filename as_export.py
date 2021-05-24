@@ -107,14 +107,13 @@ class Updater:
         if resource:
             self.log.debug("Exporting digital objects for resource {}".format(resource))
             digital_objects = []
-            for component in walk_tree('{}/resources/{}'.format(self.as_repo.uri, resource), client):
+            for component in walk_tree("{}/resources/{}".format(self.as_repo.uri, resource), client):
                 for instance in component['instances']:
                     if instance['instance_type'] == 'digital_object':
                         digital_objects.append(self.client.get(instance['digital_object']['ref']).json())
-                        print(digital_objects)
         else:
             self.log.debug("Exporting digital objects updated since {}".format(updated))
-            digital_objects = self.as_repo.digital_objects.with_params(all_ids=True, modified_since=updated)
+            digital_objects = [object.json() for object in self.as_repo.digital_objects.with_params(all_ids=True, modified_since=updated)]
         for d in digital_objects:
             if d['publish']:
                 self.save_mets(d)
