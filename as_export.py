@@ -110,17 +110,18 @@ class Updater:
             for component in walk_tree('{}/resources/{}'.format(self.as_repo.uri, resource), client):
                 for instance in component['instances']:
                     if instance['instance_type'] == 'digital_object':
-                        digital_objects.append(instance['digital_object'])
+                        digital_objects.append(self.client.get(instance['digital_object']['ref']).json())
+                        print(digital_objects)
         else:
             self.log.debug("Exporting digital objects updated since {}".format(updated))
             digital_objects = self.as_repo.digital_objects.with_params(all_ids=True, modified_since=updated)
         for d in digital_objects:
-            if d.publish:
+            if d['publish']:
                 self.save_mets(d)
             else:
-                if self.remove_file(os.path.join(self.mets_dir, "{}.xml".format(d.digital_object_id))):
-                    self.changed_list.append(d.uri)
-                    self.log.debug("Digital object {} was unpublished and removed".format(d.digital_object_id))
+                if self.remove_file(os.path.join(self.mets_dir, "{}.xml".format(d['digital_object_id']))):
+                    self.changed_list.append(d['uri'])
+                    self.log.debug("Digital object {} was unpublished and removed".format(d['digital_object_id']))
 
     def save_ead(self, resource):
         try:
@@ -136,15 +137,15 @@ class Updater:
 
     def save_mets(self, digital):
         try:
-            self.save_xml_to_file(os.path.join(self.mets_dir, "{}.xml".format(digital.digital_object_id)),
+            self.save_xml_to_file(os.path.join(self.mets_dir, "{}.xml".format(digital['digital_object_id'])),
                                   '/repositories/{}/digital_objects/mets/{}.xml'
-                                    .format(self.repository, os.path.split(digital.uri)[1]))
-            self.changed_list.append(digital.uri)
-            self.log.debug("METS file {} saved".format(digital.digital_object_id))
+                                    .format(self.repository, os.path.split(digital['uri'])[1]))
+            self.changed_list.append(digital['uri'])
+            self.log.debug("METS file {} saved".format(digital['digital_object_id']))
         except Exception as e:
-            self.log.error("Error saving METS file {}: {}".format(digital.digital_object_id, e))
-            if self.remove_file(os.path.join(self.mets_dir, "{}.xml".format(digital.digital_object_id))):
-                self.changed_list.append(digital.uri)
+            self.log.error("Error saving METS file {}: {}".format(digital['digital_object_id'], e))
+            if self.remove_file(os.path.join(self.mets_dir, "{}.xml".format(digital['digital_object_id']))):
+                self.changed_list.append(digital['uri'])
 
     def remove_file(self, file_path):
         if os.path.isfile(file_path):
