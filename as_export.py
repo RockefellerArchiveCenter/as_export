@@ -103,7 +103,7 @@ class Updater:
                     self.changed_list.append(r.uri)
                     self.log.debug("Resource {} was unpublished and removed".format(r.id_0))
 
-    def export_digital_objects(self, client, updated=0, resource=None):
+    def export_digital_objects(self, updated=0, resource=None):
         if resource:
             self.log.debug("Exporting digital objects for resource {}".format(resource))
             digital_objects = []
