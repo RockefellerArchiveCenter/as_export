@@ -60,14 +60,14 @@ class Updater:
         if self.update_time:
             self.store_last_export_time()
         elif self.digital_only or self.digital_resource_id:
-            self.export_digital_objects(self.client, resource=self.digital_resource_id)
+            self.export_digital_objects(resource=self.digital_resource_id)
         elif self.target_resource_id:
             r = self.as_repo.resources(self.target_resource_id)
             self.save_ead(r)
         else:
             self.export_resources(updated=self.last_export_time)
             self.export_resources_from_objects(updated=self.last_export_time)
-            self.export_digital_objects(self.client, updated=self.last_export_time)
+            self.export_digital_objects(updated=self.last_export_time)
             self.store_last_export_time()
         if len(self.changed_list):
             self.version_data()
