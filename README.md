@@ -1,5 +1,5 @@
-# Automated exports for ArchivesSpace
-These scripts export updated data from ArchivesSpace and version all data using git.
+# as_export
+A script to automate and version the export of updated data from ArchivesSpace.
 
 ## Dependencies
 
