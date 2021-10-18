@@ -75,5 +75,8 @@ The script supports a few arguments, which will include or exclude specific func
 ### as_export.py
 Exports EAD files from published resource records updated since last export (including updates to any child components or associated agents and subjects), as well as METS records for digital object records associated with those resource records. If a resource record is unpublished, this script will remove the EAD, PDF and any associated METS records. Exported or deleted files are logged to a text file `log.txt`. (Python)
 
+## Development
+This repository contains a configuration file for git [pre-commit](https://pre-commit.com/) hooks which help ensure that code is linted before it is checked into version control. It is strongly recommended that you install these hooks locally by installing pre-commit and running `pre-commit install`.
+
 ## License
 This code is released under the MIT License. See `LICENSE.md` for more information.
