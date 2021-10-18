@@ -30,7 +30,7 @@ A script to automate and version the export of updated data from ArchivesSpace.
         numbered:false
 
         [LAST_EXPORT]
-        filepath:lastExport.txt
+        filepath:last_export.txt
 
         [DESTINATIONS]
         data = data
