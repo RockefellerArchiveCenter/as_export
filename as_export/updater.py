@@ -206,7 +206,7 @@ class Updater:
                         return True
                     except OSError:
                         pass
-                return False
+        return False
 
     def write_pid(self):
         with open(self.pid_filepath, 'w') as f:

@@ -14,9 +14,12 @@ def remove_pid_file():
         os.remove(pid_filepath)
 
 
+def setup_function():
+    remove_pid_file()
+
+
 @patch("as_export.updater.ASpace")
 def test_last_export_time(mock_aspace):
-    remove_pid_file()
     initial_time = 12345
     updater = Updater(False, False, False, False)
     updater.start_time = initial_time
@@ -40,7 +43,6 @@ def test_argument_handling(
         mock_aspace):
 
     # Update time
-    remove_pid_file()
     Updater(True, False, False, False)._run()
     mock_store_last_export_time.assert_called_once()
     for mock in [
@@ -82,3 +84,11 @@ def test_argument_handling(
             mock_export_digital_objects,
             mock_store_last_export_time]:
         assert mock.call_count == 1
+
+
+@patch("as_export.updater.ASpace")
+def test_is_running(mock_aspace):
+    updater = Updater(False, False, False, False)
+    assert updater.is_running() is True
+    remove_pid_file()
+    assert updater.is_running() is False
