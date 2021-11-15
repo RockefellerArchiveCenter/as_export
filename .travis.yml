@@ -5,6 +5,7 @@ cache:
     - $HOME/.cache/pre-commit
 install:
   - pip install tox
+  - cp local_settings.cfg.example local_settings.cfg
 script:
   - tox
 matrix:
