@@ -4,9 +4,15 @@ cache:
     - $HOME/.cache/pip
     - $HOME/.cache/pre-commit
 install:
-  - pip install -r requirements.txt
-  - pip install pre-commit && pre-commit install
+  - pip install tox
+  - cp local_settings.cfg.example local_settings.cfg
 script:
-  - pre-commit run --all-files --show-diff-on-failure
+  - tox
+matrix:
+  include:
+    - python: "3.6"
+      env: TOXENV=py36
+    - python: "3.6"
+      env: TOXENV=linting
 notifications:
   email: false

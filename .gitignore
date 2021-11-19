@@ -5,3 +5,7 @@ last_export*
 *.pickle
 data/
 pdf/
+*__pycache__/
+*.egg-info
+lastExport.txt
+.coverage

@@ -1,0 +1,18 @@
+[ARCHIVESSPACE]
+baseurl:http://sandbox.archivesspace.org:8089
+repository:2
+user:admin
+password:admin
+
+[EAD]
+unpublished:false
+daos:true
+numbered:false
+
+[LAST_EXPORT]
+filepath:lastExport.txt
+
+[DESTINATIONS]
+data = data
+ead = ead
+mets = mets

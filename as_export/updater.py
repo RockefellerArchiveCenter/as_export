@@ -12,10 +12,7 @@ from asnake.aspace import ASpace
 from asnake.utils import walk_tree
 from requests_toolbelt.downloadutils import stream
 
-base_dir = os.path.normpath(
-    os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__))))
+base_dir = os.path.abspath(__file__ + "/../../")
 logging.basicConfig(filename='log.txt', format='%(asctime)s %(message)s',
                     datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.INFO)
 
@@ -30,6 +27,7 @@ class VersionException(Exception):
 
 class Updater:
     def __init__(self, update_time, digital, resource, resource_digital):
+        self.log = logging.getLogger(__name__)
         self.pid_filepath = os.path.join(base_dir, 'daemon.pid')
         if self.is_running():
             raise Exception('Process is still running.')
@@ -39,7 +37,6 @@ class Updater:
         self.digital_only = digital
         self.target_resource_id = resource
         self.digital_resource_id = resource_digital
-        self.log = logging.getLogger(__name__)
         self.config = configparser.ConfigParser()
         self.config.read(os.path.join(base_dir, 'local_settings.cfg'))
         self.data_root = self.config.get('DESTINATIONS', 'data')
@@ -53,15 +50,12 @@ class Updater:
         self.repository = self.config.get('ARCHIVESSPACE', 'repository')
         if not os.path.isdir(self.data_root):
             os.makedirs(self.data_root)
-        try:
-            aspace = ASpace(
-                baseurl=self.config.get('ARCHIVESSPACE', 'baseurl'),
-                user=self.config.get('ARCHIVESSPACE', 'user'),
-                password=self.config.get('ARCHIVESSPACE', 'password'))
-            self.as_repo = aspace.repositories(self.repository)
-            self.client = aspace.client
-        except Exception as e:
-            raise Exception(e)
+        aspace = ASpace(
+            baseurl=self.config.get('ARCHIVESSPACE', 'baseurl'),
+            user=self.config.get('ARCHIVESSPACE', 'user'),
+            password=self.config.get('ARCHIVESSPACE', 'password'))
+        self.as_repo = aspace.repositories(self.repository)
+        self.client = aspace.client
 
     def _run(self):
         self.log.info('Update started')
@@ -212,7 +206,7 @@ class Updater:
                         return True
                     except OSError:
                         pass
-                return False
+        return False
 
     def write_pid(self):
         with open(self.pid_filepath, 'w') as f:
@@ -245,7 +239,8 @@ class Updater:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='')
+    parser = argparse.ArgumentParser(
+        description='Exports EAD and METS files from updated description in ArchivesSpace.')
     parser.add_argument(
         '--update_time',
         action='store_true',
@@ -266,4 +261,5 @@ def main():
             resource=args.resource, resource_digital=args.resource_digital)._run()
 
 
-main()
+if __name__ == "__main__":
+    main()
