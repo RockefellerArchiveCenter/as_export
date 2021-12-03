@@ -52,7 +52,7 @@ class Updater:
             os.makedirs(self.data_root)
         aspace = ASpace(
             baseurl=self.config.get('ARCHIVESSPACE', 'baseurl'),
-            user=self.config.get('ARCHIVESSPACE', 'user'),
+            username=self.config.get('ARCHIVESSPACE', 'user'),
             password=self.config.get('ARCHIVESSPACE', 'password'))
         self.as_repo = aspace.repositories(self.repository)
         self.client = aspace.client
