@@ -1,0 +1,393 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: >
+  as_export
+
+  Export updated resources from ArchivesSpace
+
+Mappings:
+  ArchivesSpace:
+    BaseUrl:
+      dev: https://as.dev.rockarch.org/api
+      prod: https://as.rockarch.org/api
+    RepoId:
+      dev: 2
+      prod: 2
+  Ead:
+    IncludeUnpublished:
+      dev: False
+      prod: False
+    IncludeDaos:
+      dev: False
+      prod: False
+    NumberedCs:
+      dev: False
+      prod: False
+  Export:
+    EadDir:
+      dev: "ead"
+      prod: "ead"
+    LastExportFilename:
+      dev: "last-export.txt"
+      prod: "last-export.txt"
+
+Parameters: 
+  ApplicationEnvironment:
+    Type: String
+    Description: Environment in which application should be deployed.
+    AllowedValues:
+      - dev
+      - prod
+    Default: dev
+  ApplicationName:
+    Type: String
+    Description: Name of applications
+    Default: as_export
+  AsUsername:
+    Type: String
+    Description: ArchivesSpace user name
+  AsPassword:
+    Type: String
+    Description: ArchivesSpace password
+  ContainerAccountId:
+    Type: String
+    Description: Account ID under which container repository is located.
+    Default: "817658541382"
+
+Resources:
+  AsBaseurlParameter:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Description: ArchivesSpace base URL
+      Name: !Sub /${ApplicationEnvironment}/${ApplicationName}/AS_BASEURL
+      Tags: 
+        Environment: !Ref ApplicationEnvironment
+        Application: !Ref ApplicationName
+      Type: String
+      Value: !FindInMap [ArchivesSpace, BaseUrl, !Ref ApplicationEnvironment]
+  AsUsernameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: ArchivesSpace user name
+      Name: !Sub /${ApplicationEnvironment}/${ApplicationName}/AS_USERNAME
+      Tags: 
+        Environment: !Ref ApplicationEnvironment
+        Application: !Ref ApplicationName
+      Type: String
+      Value: !Ref AsUsername
+  AsPasswordParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: ArchivesSpace password
+      Name: !Sub /${ApplicationEnvironment}/${ApplicationName}/AS_PASSWORD
+      Tags: 
+        Environment: !Ref ApplicationEnvironment
+        Application: !Ref ApplicationName
+      Type: String
+      Value: !Ref AsPassword
+  AsRepoIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Description: ArchivesSpace repo ID
+      Name: !Sub /${ApplicationEnvironment}/${ApplicationName}/AS_REPO_ID
+      Tags: 
+        Environment: !Ref ApplicationEnvironment
+        Application: !Ref ApplicationName
+      Type: String
+      Value: !FindInMap [ArchivesSpace, RepoId, !Ref ApplicationEnvironment]
+  IncludeUnpublishedParameter:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Description: Include unpublished archival objects?
+      Name: !Sub /${ApplicationEnvironment}/${ApplicationName}/INCLUDE_UNPUBLISHED
+      Tags: 
+        Environment: !Ref ApplicationEnvironment
+        Application: !Ref ApplicationName
+      Type: String
+      Value: !FindInMap [Ead, IncludeUnpublished, !Ref ApplicationEnvironment]
+  IncludeDaosParameter:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Description: Include digital objects?
+      Name: !Sub /${ApplicationEnvironment}/${ApplicationName}/INCLUDE_DAOS
+      Tags: 
+        Environment: !Ref ApplicationEnvironment
+        Application: !Ref ApplicationName
+      Type: String
+      Value: !FindInMap [Ead, IncludeDaos, !Ref ApplicationEnvironment]
+  NumberedCsParameter:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Description: Number c levels?
+      Name: !Sub /${ApplicationEnvironment}/${ApplicationName}/NUMBERED_CS
+      Tags: 
+        Environment: !Ref ApplicationEnvironment
+        Application: !Ref ApplicationName
+      Type: String
+      Value: !FindInMap [Ead, NumberedCs, !Ref ApplicationEnvironment]
+  EadDirParameter:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Description: Number c levels?
+      Name: !Sub /${ApplicationEnvironment}/${ApplicationName}/EAD_DIR
+      Tags: 
+        Environment: !Ref ApplicationEnvironment
+        Application: !Ref ApplicationName
+      Type: String
+      Value: !FindInMap [Export, EadDir, !Ref ApplicationEnvironment]
+  AwsBucketParameter:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Description: Number c levels?
+      Name: !Sub /${ApplicationEnvironment}/${ApplicationName}/AWS_BUCKET
+      Tags: 
+        Environment: !Ref ApplicationEnvironment
+        Application: !Ref ApplicationName
+      Type: String
+      Value: !Ref s3Bucket
+  LastExportFilenameParameter:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Description: Number c levels?
+      Name: !Sub /${ApplicationEnvironment}/${ApplicationName}/LAST_EXPORT_FILENAME
+      Tags: 
+        Environment: !Ref ApplicationEnvironment
+        Application: !Ref ApplicationName
+      Type: String
+      Value: !FindInMap [Export, LastExportFilename, !Ref ApplicationEnvironment]
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties: 
+      CapacityProviders: 
+        - FARGATE
+      ClusterName: AsExportCluster
+      Tags: 
+        - Key: Environment
+          Value: !Ref ApplicationEnvironment
+        - Key: Application
+          Value: !Ref ApplicationName
+  
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: LogPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: 
+                  - !GetAtt LogGroup.Arn
+        - PolicyName: EcrPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - 'ecr:BatchCheckLayerAvailability'
+                  - 'ecr:GetDownloadUrlForLayer'
+                  - 'ecr:BatchGetImage'
+                Resource: 
+                  - !Sub arn:aws:ecr:${AWS::Region}:${ContainerAccountId}:repository/${ApplicationName}
+              - Effect: Allow
+                Action:
+                  - 'ecr:GetAuthorizationToken'
+                Resource: '*'
+
+  IamUser:
+    Type: AWS::IAM::User
+
+  IamUserAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties: 
+      UserName: !Ref IamUser
+
+  S3Role:
+    Type: AWS::IAM::Role
+    Properties: 
+      RoleName: as-export-s3-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS:
+                - !GetAtt IamUser.Arn
+            Action:
+              - 'sts:AssumeRole'
+      Description: 'Allows upload and delete of S3 objects.'
+      Policies:
+        - PolicyName: S3ObjectPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - 's3:PutObject'
+                  - 's3:GetObject'
+                  - 's3:DeleteObject'
+                Resource: 
+                  - !Sub '${S3Bucket.Arn}/*'
+    
+  SsmRole:
+    Type: AWS::IAM::Role
+    Properties: 
+      RoleName: as-export-ssm-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS:
+                - !GetAtt IamUser.Arn
+            Action:
+              - 'sts:AssumeRole'
+      Description: 'Allows fetch of SSM configs.'
+      Policies:
+        - PolicyName: SSMPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - 'ssm:GetParametersByPath'
+                Resource:
+                  - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ApplicationEnvironment}/${ApplicationName}
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      LogGroupName: !Sub "/rac/${ApplicationEnvironment}/${ApplicationName}"
+      RetentionInDays: 90
+  
+  ECSTask:
+    Type: AWS::ECS::TaskDefinition
+    Properties: 
+      Cpu: "1024"
+      Memory: "3072"
+      ContainerDefinitions: 
+        - Name: !Ref ApplicationName
+          Image: !Sub "${ContainerAccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ApplicationName}:latest"
+          Essential: true
+          Environment:
+            - Name: ENV
+              Value: !Ref ApplicationEnvironment
+            - Name: AWS_ACCESS_KEY_ID
+              Value: !Ref IamUserAccessKey
+            - Name: AWS_SECRET_ACCESS_KEY
+              Value: !GetAtt IamUserAccessKey.SecretAccessKey
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+            - Name: AWS_S3_ROLE
+              Value: !Ref S3Role
+            - Name: AWS_SSM_ROLE
+              Value: !Ref SsmRole
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              "awslogs-group": !Ref LogGroup
+              "awslogs-region": !Ref AWS::Region
+              "awslogs-stream-prefix": "ecs"
+      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      Family: !Ref ApplicationName
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      RuntimePlatform:
+        CpuArchitecture: X86_64
+        OperatingSystemFamily: LINUX
+  
+  EventbridgeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: 
+            - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: 
+              - events.amazonaws.com
+        Version: '2012-10-17'
+      Policies:
+        - PolicyName: ECRPolicy
+          PolicyDocument: 
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+                - ecs:RunTask
+                - ecr:GetAuthorizationToken
+                - ecr:BatchCheckLayerAvailability
+                - ecr:GetDownloadUrlForLayer
+                - ecr:BatchGetImage
+              Resource:
+                - !Sub arn:aws:ecr:${AWS::Region}:${ContainerAccountId}:repository/${ApplicationName}
+        - PolicyName: SSMPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+                - ecs:RunTask
+              Resource:
+                - !Ref ECSTask
+            - Effect: Allow
+              Action: iam:PassRole
+              Resource:
+                - !Ref ECSTask
+              Condition:
+                StringLike:
+                  iam:PassedToService: ecs-tasks.amazonaws.com
+
+  EventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: cron(0 8 15 * ? *)
+      Targets:
+        - Id: AsExport
+          Arn: !Ref ECSTask
+          RoleArn: 
+          EcsParameters:
+            EnableExecuteCommand: true
+            LaunchType: FARGATE
+            TaskDefinitionArn: !Ref ECSTask
+            NetworkConfiguration:
+              AwsVpcConfiguration:
+                AssignPublicIp: ENABLED
+                Subnets: !Ref SubnetList
+                SecurityGroups:
+                  - !Ref TaskSecurityGroup
+
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties: 
+      BucketName: !Sub rac-${ApplicationEnvironment}-as-export
+      PublicAccessBlockConfiguration: 
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+Outputs:
+  S3Role:
+    Description: ARN for role which provides access to S3
+    Value: !GetAtt S3Role.Arn
+  SsmRole:
+    Description: ARN for role which provides access to SSM
+    Value: !GetAtt SsmRole.Arn
+  

@@ -4,7 +4,6 @@ import logging
 import time
 import traceback
 from os import getenv
-from pathlib import Path
 
 import boto3
 from asnake.client import ASnakeClient
@@ -14,9 +13,6 @@ logging.basicConfig(
     level=int(getenv('LOGGING_LEVEL', logging.INFO)),
     format='%(filename)s::%(funcName)s::%(lineno)s %(message)s')
 
-# TODO 
-# use raise_for_status on XML response - also we probably need to use the text or something?
-# infrastructure template
 
 class DataExporter:
 
@@ -63,11 +59,11 @@ class DataExporter:
 
     def get_client_with_role(self, resource, role_arn):
         """Gets Boto3 client which authenticates with a specific IAM role.
-        
+
         Args:
             resource (str): client resource, such as s3
             role_arn: ARN of the role to be assumed
-        
+
         Returns:
             client with assumed role
         """
@@ -98,9 +94,9 @@ class DataExporter:
 
     def get_updated_resource_ids(self, last_updated):
         """
-        Creates a list of all resources that have been updated, 
+        Creates a list of all resources that have been updated,
         or have updated objects within them.
-        
+
         Args:
             last_updated (int): timestamp after which objects were updated
 
@@ -115,14 +111,14 @@ class DataExporter:
             params={'all_ids': True, "updated_since": last_updated}).json()
         for id_chunk in self.list_chunks(updated_archival_objects, self.page_size):
             params = {"id_set": id_chunk, "fields": "resource"}
-            ao_chunk =  self.as_client.get(f'/repositories/{self.as_repo_id}/archival_objects', params=params).json()
+            ao_chunk = self.as_client.get(f'/repositories/{self.as_repo_id}/archival_objects', params=params).json()
             for archival_object in ao_chunk:
                 updated_resources.append(int(archival_object['resource']['ref'].split('/')[-1]))
         return list(set(updated_resources))
 
     def handle_resource_id(self, resource_id):
         """Handles export of updated resource
-        
+
         Args:
             resource_id (int): ArchivesSpace ID for a resource record
         """
@@ -136,7 +132,7 @@ class DataExporter:
 
     def save_ead(self, resource_id, filepath):
         """Saves EAD XML to S3 bucket
-        
+
         Args:
             resource_id (int): ArchivesSpace ID for a resource record
             filepath (str): Path in which file will be created
@@ -144,17 +140,18 @@ class DataExporter:
         try:
             uri = f'/repositories/{self.as_repo_id}/resource_descriptions/{resource_id}.xml'
             xml = self.as_client.get(
-                uri, 
+                uri,
                 params={
                     'include_unpublished': self.config.get('INCLUDE_UNPUBLISHED'),
                     'include_daos': self.config.get('INCLUDE_DAOS'),
                     'numbered_cs': self.config.get('NUMBERED_CS')
                 }
             )
+            xml.raise_for_status()
             self.s3_client.put_object(
                 Bucket=self.config['AWS_BUCKET'],
                 Key=filepath,
-                Body=bytes(xml, 'utf-8'))
+                Body=bytes(xml.text, 'utf-8'))
             logging.debug(f'EAD file {filepath} saved')
         except Exception as e:
             logging.error(f'Error saving EAD file {filepath}: {e}')
@@ -162,7 +159,7 @@ class DataExporter:
 
     def remove_file(self, filepath):
         """Removes file from bucket if it exists.
-        
+
         Args:
             filepath (str): filepath to be removed.
         """
@@ -182,14 +179,14 @@ class DataExporter:
                 Bucket=self.config['AWS_BUCKET'],
                 Key=self.config['LAST_EXPORT_FILENAME'])
             last_export = object['Body'].read().decode("utf-8")
-        except Exception as e:
+        except Exception:
             last_export = 0
         logging.debug(f'Last export datestamp {last_export} fetched')
         return int(last_export)
 
     def store_last_export_time(self, last_updated):
         """Sets last exported time.
-        
+
         Args:
             last_updated (int): timestamp of last export
         """
@@ -198,6 +195,7 @@ class DataExporter:
             Key=self.config['LAST_EXPORT_FILENAME'],
             Body=bytes(str(last_updated), 'utf-8'))
         logging.debug(f'Last export time updated to {last_updated}')
+
 
 if __name__ == "__main__":
     DataExporter().export_all()

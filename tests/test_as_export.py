@@ -5,8 +5,26 @@ import boto3
 import botocore
 import pytest
 from moto import mock_aws
+from requests.exceptions import HTTPError
 
 from src.export import DataExporter
+
+
+class MockResponse(object):
+    """Class used to mock HTTP responses"""
+
+    def __init__(self, text, status_code, **kwargs):
+        """Sets data, status code, and any other data passed in."""
+        self.text = text
+        self.status_code = status_code
+        for k in kwargs:
+            setattr(self, k, kwargs[k])
+
+    def raise_for_status(self):
+        if self.status_code != 200:
+            self.text = "This is an error"
+            raise HTTPError(response=self)
+        pass
 
 
 @mock_aws
@@ -114,7 +132,7 @@ def test_save_ead(mock_remove, mock_get, mock_exporter):
     filepath = "ead/foo.xml"
     s3 = boto3.client('s3')
     s3.create_bucket(Bucket=aws_bucket)
-    mock_get.return_value = "xml"
+    mock_get.return_value = MockResponse("xml", 200)
     mock_exporter.save_ead("1", filepath)
     s3.head_object(Bucket=aws_bucket, Key=filepath)
 
