@@ -53,6 +53,12 @@ Parameters:
     Type: String
     Description: Account ID under which container repository is located.
     Default: "817658541382"
+  TaskSecurityGroup:
+    Type: String
+    Description: Name of the security group that allows the ECS task.
+  SubnetList:
+    Type: AWS::EC2::Subnet::Id
+    Description: Id of the desired subnet list.
 
 Resources:
   AsBaseurlParameter:
@@ -144,7 +150,7 @@ Resources:
         Environment: !Ref ApplicationEnvironment
         Application: !Ref ApplicationName
       Type: String
-      Value: !Ref s3Bucket
+      Value: !Ref S3Bucket
   LastExportFilenameParameter:
     Type: AWS::SSM::Parameter
     Properties: 
@@ -361,7 +367,7 @@ Resources:
       Targets:
         - Id: AsExport
           Arn: !Ref ECSTask
-          RoleArn: 
+          RoleArn: !GetAtt EventbridgeRole.Arn
           EcsParameters:
             EnableExecuteCommand: true
             LaunchType: FARGATE
