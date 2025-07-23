@@ -54,7 +54,7 @@ Parameters:
     Description: Account ID under which container repository is located.
     Default: "817658541382"
   TaskSecurityGroup:
-    Type: String
+    Type: AWS::EC2::SecurityGroup::Id
     Description: Name of the security group that allows the ECS task.
   SubnetList:
     Type: AWS::EC2::Subnet::Id
