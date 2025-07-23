@@ -375,7 +375,8 @@ Resources:
             NetworkConfiguration:
               AwsVpcConfiguration:
                 AssignPublicIp: ENABLED
-                Subnets: !Ref SubnetList
+                Subnets: 
+                  - !Ref SubnetList
                 SecurityGroups:
                   - !Ref TaskSecurityGroup
 
