@@ -366,7 +366,7 @@ Resources:
       ScheduleExpression: cron(0 8 15 * ? *)
       Targets:
         - Id: AsExport
-          Arn: !Ref ECSTask
+          Arn: !GetAtt ECSCluster.Arn
           RoleArn: !GetAtt EventbridgeRole.Arn
           EcsParameters:
             EnableExecuteCommand: true
