@@ -29,6 +29,7 @@ class DataExporter:
         self.as_repo_id = self.config['AS_REPO_ID']
         self.s3_client = self.get_client_with_role('s3', getenv('AWS_S3_ROLE'))
         self.page_size = 25
+        self.service_name = 'as_export'
 
     def get_config(self, environment):
         """Fetch config values from Parameter Store.
