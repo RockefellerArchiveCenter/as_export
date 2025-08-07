@@ -1,0 +1,39 @@
+name: Tests
+
+on:
+  pull_request:
+    branches:
+      - development
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment:
+      name: development
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            $HOME/.cache/pip
+            $HOME/.cache/pre-commit
+            $HOME/.cache/tox
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/*.lock') }}
+
+      - name: Install tox
+        run: pip install tox
+
+      - name: Run tests
+        run: tox
