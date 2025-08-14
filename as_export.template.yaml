@@ -299,9 +299,9 @@ Resources:
             - Name: AWS_REGION
               Value: !Ref AWS::Region
             - Name: AWS_S3_ROLE
-              Value: !Ref S3Role
+              Value: !GetAtt S3Role.Arn
             - Name: AWS_SSM_ROLE
-              Value: !Ref SsmRole
+              Value: !GetAtt SsmRole.Arn
           LogConfiguration:
             LogDriver: awslogs
             Options:

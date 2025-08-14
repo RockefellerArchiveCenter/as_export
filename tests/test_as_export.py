@@ -66,7 +66,7 @@ def test_init(mock_authorize, mock_s3, mock_config):
     DataExporter()
 
     mock_s3.assert_called_once_with('s3', getenv('AWS_S3_ROLE'))
-    mock_config.assert_called_once_with(getenv('ENVIRONMENT'))
+    mock_config.assert_called_once_with(getenv('ENV'))
 
 
 @patch('src.export.DataExporter.get_last_export_time')

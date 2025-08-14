@@ -19,7 +19,7 @@ class DataExporter:
     def __init__(self):
         """Sets up clients and class attributes."""
         self.service_name = 'as_export'
-        self.config = self.get_config(getenv('ENVIRONMENT'))
+        self.config = self.get_config(getenv('ENV'))
         self.as_client = ASnakeClient(
             baseurl=self.config['AS_BASEURL'],
             username=self.config['AS_USERNAME'],
