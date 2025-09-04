@@ -27,8 +27,8 @@ class MockResponse(object):
         pass
 
 
-@mock_aws
 @pytest.fixture
+@mock_aws
 @patch('src.export.DataExporter.get_config')
 @patch('src.export.ASnakeClient.authorize')
 def mock_exporter(mock_authorize, mock_config):
