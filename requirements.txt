@@ -6,11 +6,11 @@ aws-assume-role-lib==2.10.0
     # via -r requirements.in
 boltons==25.0.0
     # via archivessnake
-boto3==1.40.22
+boto3==1.40.42
     # via
     #   -r requirements.in
     #   aws-assume-role-lib
-botocore==1.40.22
+botocore==1.40.42
     # via
     #   boto3
     #   s3transfer
@@ -28,13 +28,13 @@ more-itertools==10.8.0
     # via archivessnake
 python-dateutil==2.9.0.post0
     # via botocore
-pyyaml==6.0.2
+pyyaml==6.0.3
     # via archivessnake
-rapidfuzz==3.14.0
+rapidfuzz==3.14.1
     # via archivessnake
 requests==2.32.5
     # via archivessnake
-s3transfer==0.13.1
+s3transfer==0.14.0
     # via boto3
 six==1.17.0
     # via python-dateutil
