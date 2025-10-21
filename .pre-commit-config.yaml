@@ -6,7 +6,6 @@ repos:
     args:
       - --in-place
       - --aggressive
-      - --max-line-length=100
 - repo: https://github.com/pycqa/flake8
   rev: 7.3.0
   hooks:
