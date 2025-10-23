@@ -1,4 +1,4 @@
-FROM python:3.11-bookworm AS base
+FROM python:3.12-alpine AS base
 WORKDIR /code
 COPY requirements.txt .
 RUN pip install -r requirements.txt

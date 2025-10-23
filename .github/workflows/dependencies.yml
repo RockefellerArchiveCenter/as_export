@@ -23,7 +23,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           cache: pip
 
       - name: Install pre-commit and pip-tools
@@ -33,10 +33,10 @@ jobs:
         run: pre-commit autoupdate
 
       - name: Run pip-compile
-        run: pip-compile --upgrade
+        run: pip-compile --upgrade --no-header
       
       - name: Update test requirements
-        run: pip-compile --upgrade tests/test_requirements.in -o tests/test_requirements.txt
+        run: pip-compile --upgrade --no-header tests/test_requirements.in -o tests/test_requirements.txt
 
       - name: Run GitHub Actions Version Updater
         uses: saadmk11/github-actions-version-updater@v0.9.0
