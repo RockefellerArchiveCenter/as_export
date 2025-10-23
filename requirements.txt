@@ -1,24 +1,24 @@
 archivessnake==0.10.1
     # via -r requirements.in
-attrs==25.3.0
+attrs==25.4.0
     # via archivessnake
 aws-assume-role-lib==2.10.0
     # via -r requirements.in
 boltons==25.0.0
     # via archivessnake
-boto3==1.40.42
+boto3==1.40.53
     # via
     #   -r requirements.in
     #   aws-assume-role-lib
-botocore==1.40.42
+botocore==1.40.53
     # via
     #   boto3
     #   s3transfer
-certifi==2025.8.3
+certifi==2025.10.5
     # via requests
-charset-normalizer==3.4.3
+charset-normalizer==3.4.4
     # via requests
-idna==3.10
+idna==3.11
     # via requests
 jmespath==1.0.1
     # via
