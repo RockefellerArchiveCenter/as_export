@@ -208,11 +208,21 @@ Resources:
                   - 'ecr:GetDownloadUrlForLayer'
                   - 'ecr:BatchGetImage'
                 Resource: 
-                  - !Sub arn:aws:ecr:${AWS::Region}:${ContainerAccountId}:repository/${ApplicationName}
+                  - !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${ContainerAccountId}:repository/${ApplicationName}
               - Effect: Allow
                 Action:
                   - 'ecr:GetAuthorizationToken'
                 Resource: '*'
+        - PolicyName: SSMPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ssm:GetParameters'
+                Resource:
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ApplicationEnvironment}/${ApplicationName}/*
+
 
   IamUser:
     Type: AWS::IAM::User
@@ -221,6 +231,28 @@ Resources:
     Type: AWS::IAM::AccessKey
     Properties: 
       UserName: !Ref IamUser
+
+  IamUserIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Description: Secret Access Key ID for IamUser.
+      Name: !Sub /${ApplicationEnvironment}/${ApplicationName}/AWS_ACCESS_KEY_ID
+      Tags: 
+        Environment: !Ref ApplicationEnvironment
+        Application: !Ref ApplicationName
+      Type: String
+      Value: !Ref IamUserAccessKey
+
+  IamUserKeyParameter:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Description: Secret Access Key for IamUser.
+      Name: !Sub /${ApplicationEnvironment}/${ApplicationName}/AWS_SECRET_ACCESS_KEY
+      Tags: 
+        Environment: !Ref ApplicationEnvironment
+        Application: !Ref ApplicationName
+      Type: String
+      Value: !GetAtt IamUserAccessKey.SecretAccessKey
 
   S3Role:
     Type: AWS::IAM::Role
@@ -272,7 +304,7 @@ Resources:
                 Action: 
                   - 'ssm:GetParametersByPath'
                 Resource:
-                  - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ApplicationEnvironment}/${ApplicationName}
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ApplicationEnvironment}/${ApplicationName}
 
   LogGroup:
     Type: AWS::Logs::LogGroup
@@ -292,10 +324,6 @@ Resources:
           Environment:
             - Name: ENV
               Value: !Ref ApplicationEnvironment
-            - Name: AWS_ACCESS_KEY_ID
-              Value: !Ref IamUserAccessKey
-            - Name: AWS_SECRET_ACCESS_KEY
-              Value: !GetAtt IamUserAccessKey.SecretAccessKey
             - Name: AWS_REGION
               Value: !Ref AWS::Region
             - Name: AWS_S3_ROLE
@@ -308,6 +336,12 @@ Resources:
               "awslogs-group": !Ref LogGroup
               "awslogs-region": !Ref AWS::Region
               "awslogs-stream-prefix": "ecs"
+          ReadonlyRootFilesystem: true
+          Secrets:
+            - Name: AWS_ACCESS_KEY_ID
+              ValueFrom: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${IamUserIdParameter}'
+            - Name: AWS_SECRET_ACCESS_KEY
+              ValueFrom: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${IamUserKeyParameter}'
       ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
       Family: !Ref ApplicationName
       NetworkMode: awsvpc
