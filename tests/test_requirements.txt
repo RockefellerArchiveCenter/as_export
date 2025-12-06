@@ -12,7 +12,7 @@ cffi==2.0.0
 charset-normalizer==3.4.4
     # via requests
 coverage==7.12.0
-    # via -r tests/test_requirements.in
+    # via -r test_requirements.in
 cryptography==46.0.3
     # via moto
 idna==3.11
@@ -30,7 +30,7 @@ markupsafe==3.0.3
     #   jinja2
     #   werkzeug
 moto==5.1.18
-    # via -r tests/test_requirements.in
+    # via -r test_requirements.in
 packaging==25.0
     # via pytest
 pluggy==1.6.0
@@ -40,7 +40,7 @@ pycparser==2.23
 pygments==2.19.2
     # via pytest
 pytest==8.4.2
-    # via -r tests/test_requirements.in
+    # via -r test_requirements.in
 python-dateutil==2.9.0.post0
     # via
     #   botocore
@@ -57,7 +57,7 @@ s3transfer==0.15.0
     # via boto3
 six==1.17.0
     # via python-dateutil
-urllib3==2.5.0
+urllib3==2.6.0
     # via
     #   botocore
     #   requests
