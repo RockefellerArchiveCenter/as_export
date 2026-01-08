@@ -1,11 +1,11 @@
-boto3==1.42.19
+boto3==1.42.24
     # via moto
-botocore==1.42.19
+botocore==1.42.24
     # via
     #   boto3
     #   moto
     #   s3transfer
-certifi==2025.11.12
+certifi==2026.1.4
     # via requests
 cffi==2.0.0
     # via cryptography
@@ -57,12 +57,12 @@ s3transfer==0.16.0
     # via boto3
 six==1.17.0
     # via python-dateutil
-urllib3==2.6.2
+urllib3==2.6.3
     # via
     #   botocore
     #   requests
     #   responses
-werkzeug==3.1.4
+werkzeug==3.1.5
     # via moto
 xmltodict==1.0.2
     # via moto
