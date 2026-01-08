@@ -40,7 +40,7 @@ six==1.17.0
     # via python-dateutil
 structlog==25.5.0
     # via archivessnake
-urllib3==2.6.2
+urllib3==2.6.3
     # via
     #   botocore
     #   requests
