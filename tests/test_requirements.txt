@@ -1,6 +1,6 @@
-boto3==1.42.39
+boto3==1.42.47
     # via moto
-botocore==1.42.39
+botocore==1.42.47
     # via
     #   boto3
     #   moto
@@ -11,9 +11,9 @@ cffi==2.0.0
     # via cryptography
 charset-normalizer==3.4.4
     # via requests
-coverage==7.13.2
+coverage==7.13.4
     # via -r tests/test_requirements.in
-cryptography==46.0.4
+cryptography==46.0.5
     # via moto
 idna==3.11
     # via requests
@@ -29,7 +29,7 @@ markupsafe==3.0.3
     # via
     #   jinja2
     #   werkzeug
-moto==5.1.20
+moto==5.1.21
     # via -r tests/test_requirements.in
 packaging==26.0
     # via pytest
