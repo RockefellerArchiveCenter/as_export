@@ -1,11 +1,11 @@
-boto3==1.42.47
+boto3==1.42.59
     # via moto
-botocore==1.42.47
+botocore==1.42.59
     # via
     #   boto3
     #   moto
     #   s3transfer
-certifi==2026.1.4
+certifi==2026.2.25
     # via requests
 cffi==2.0.0
     # via cryptography
@@ -51,7 +51,7 @@ requests==2.32.5
     # via
     #   moto
     #   responses
-responses==0.25.8
+responses==0.26.0
     # via moto
 s3transfer==0.16.0
     # via boto3
@@ -62,7 +62,7 @@ urllib3==2.6.3
     #   botocore
     #   requests
     #   responses
-werkzeug==3.1.5
+werkzeug==3.1.6
     # via moto
-xmltodict==1.0.2
+xmltodict==1.0.4
     # via moto
