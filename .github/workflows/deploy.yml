@@ -52,7 +52,7 @@ jobs:
           docker push "${{ secrets.AWS_ACCOUNT_ID }}".dkr.ecr."${{ secrets.AWS_REGION }}".amazonaws.com/"${{ env.APP_NAME }}":"${{ env.DATE }}"-"${{ github.sha }}"
 
       - name: Add prod and latest tags to images
-        if: github.ref == 'refs/heads/base'
+        if: github.event_name == 'release' || github.ref == 'refs/heads/base'
         run: |
           MANIFEST=$(aws ecr batch-get-image --registry-id ${{ secrets.AWS_ACCOUNT_ID }} --repository-name ${{ env.APP_NAME }} --image-ids imageTag=dev --output json | jq -c --join-output '.images[0].imageManifest')
           aws ecr put-image --registry-id ${{ secrets.AWS_ACCOUNT_ID }} --repository-name ${{ env.APP_NAME }} --image-tag prod --image-manifest "$MANIFEST"
