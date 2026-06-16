@@ -10,5 +10,5 @@ permissions:
   pull-requests: write
 
 jobs:
-  automatic-release:
+  enforcer:
     uses: RockefellerArchiveCenter/.github/.github/workflows/enforcer.yml@base
