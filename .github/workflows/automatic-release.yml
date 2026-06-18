@@ -13,3 +13,4 @@ permissions:
 jobs:
   automatic-release:
     uses: RockefellerArchiveCenter/.github/.github/workflows/automatic-release.yml@base
+    secrets: inherit

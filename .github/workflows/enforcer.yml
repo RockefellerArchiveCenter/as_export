@@ -1,0 +1,14 @@
+name: Check Branch
+
+on:
+  pull_request:
+    branches:
+      - base
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  enforcer:
+    uses: RockefellerArchiveCenter/.github/.github/workflows/enforcer.yml@base
