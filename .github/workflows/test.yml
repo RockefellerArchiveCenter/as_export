@@ -23,6 +23,12 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install tox
+        run: pip install tox
+
+      - name: Run tests
+        run: tox
+
       - name: Cache dependencies
         uses: actions/cache@v6.1.0
         with:
@@ -31,9 +37,3 @@ jobs:
             $HOME/.cache/pre-commit
             $HOME/.cache/tox
           key: ${{ runner.os }}-pip-${{ hashFiles('**/*.lock') }}
-
-      - name: Install tox
-        run: pip install tox
-
-      - name: Run tests
-        run: tox
