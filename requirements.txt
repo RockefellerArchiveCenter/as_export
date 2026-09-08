@@ -6,19 +6,19 @@ aws-assume-role-lib==2.10.0
     # via -r requirements.in
 boltons==26.1.0
     # via archivessnake
-boto3==1.43.62
+boto3==1.43.85
     # via
     #   -r requirements.in
     #   aws-assume-role-lib
-botocore==1.43.62
+botocore==1.43.85
     # via
     #   boto3
     #   s3transfer
 certifi==2026.7.22
     # via requests
-charset-normalizer==3.4.9
+charset-normalizer==3.5.1
     # via requests
-idna==3.18
+idna==3.19
     # via requests
 jmespath==1.1.0
     # via
@@ -30,7 +30,7 @@ python-dateutil==2.9.0.post0
     # via botocore
 pyyaml==6.0.3
     # via archivessnake
-rapidfuzz==3.14.5
+rapidfuzz==3.14.6
     # via archivessnake
 requests==2.34.2
     # via archivessnake
