@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.5](https://github.com/RockefellerArchiveCenter/as_export/compare/v1.0.4...v1.0.5) (2026-09-17)
+
+
+### Bug Fixes
+
+* updates Cloudformation template to fix permissions ([959bd3a](https://github.com/RockefellerArchiveCenter/as_export/commit/959bd3a3702567d823a52eb1568d90f60ab902ca))
+
 ## [1.0.4](https://github.com/RockefellerArchiveCenter/as_export/compare/v1.0.3...v1.0.4) (2026-09-08)
 
 
