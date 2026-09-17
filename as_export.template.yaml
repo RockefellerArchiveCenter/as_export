@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 
 Description: >
-  as_export
+  as-data-export
 
   Export updated resources from ArchivesSpace
 
@@ -43,22 +43,6 @@ Parameters:
     Type: String
     Description: Name of applications
     Default: as_export
-  AsUsername:
-    Type: String
-    Description: ArchivesSpace user name
-  AsPassword:
-    Type: String
-    Description: ArchivesSpace password
-  ContainerAccountId:
-    Type: String
-    Description: Account ID under which container repository is located.
-    Default: "817658541382"
-  TaskSecurityGroup:
-    Type: AWS::EC2::SecurityGroup::Id
-    Description: Name of the security group that allows the ECS task.
-  SubnetList:
-    Type: AWS::EC2::Subnet::Id
-    Description: Id of the desired subnet list.
 
 Resources:
   AsBaseurlParameter:
@@ -80,7 +64,7 @@ Resources:
         Environment: !Ref ApplicationEnvironment
         Application: !Ref ApplicationName
       Type: String
-      Value: !Ref AsUsername
+      Value: !Sub '{{resolve:secretsmanager:${ApplicationEnvironment}/as-data-export-deploy:SecretString:AsUsername}}'
   AsPasswordParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -90,7 +74,7 @@ Resources:
         Environment: !Ref ApplicationEnvironment
         Application: !Ref ApplicationName
       Type: String
-      Value: !Ref AsPassword
+      Value: !Sub '{{resolve:secretsmanager:${ApplicationEnvironment}/as-data-export-deploy:SecretString:AsPassword}}'
   AsRepoIdParameter:
     Type: AWS::SSM::Parameter
     Properties: 
@@ -208,7 +192,7 @@ Resources:
                   - 'ecr:GetDownloadUrlForLayer'
                   - 'ecr:BatchGetImage'
                 Resource: 
-                  - !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${ContainerAccountId}:repository/${ApplicationName}
+                  - !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:{{resolve:secretsmanager:${ApplicationEnvironment}/as-data-export-deploy:SecretString:ContainerAccountId}}:repository/${ApplicationName}
               - Effect: Allow
                 Action:
                   - 'ecr:GetAuthorizationToken'
@@ -226,6 +210,12 @@ Resources:
 
   IamUser:
     Type: AWS::IAM::User
+    Properties:
+      Tags: 
+        - Key: Environment
+          Value: !Ref ApplicationEnvironment
+        - Key: Application
+          Value: !Ref ApplicationName
 
   IamUserAccessKey:
     Type: AWS::IAM::AccessKey
@@ -319,7 +309,7 @@ Resources:
       Memory: "3072"
       ContainerDefinitions: 
         - Name: !Ref ApplicationName
-          Image: !Sub "${ContainerAccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ApplicationName}:latest"
+          Image: !Sub "{{resolve:secretsmanager:${ApplicationEnvironment}/as-data-export-deploy:SecretString:ContainerAccountId}}.dkr.ecr.${AWS::Region}.amazonaws.com/${ApplicationName}:latest"
           Essential: true
           Environment:
             - Name: ENV
@@ -361,58 +351,64 @@ Resources:
           Effect: Allow
           Principal:
             Service: 
-              - events.amazonaws.com
+              - scheduler.amazonaws.com
         Version: '2012-10-17'
       Policies:
-        - PolicyName: ECRPolicy
+        - PolicyName: EcsPolicy
           PolicyDocument: 
-            Version: '2012-10-17'
             Statement:
-            - Effect: Allow
-              Action:
-                - ecs:RunTask
-                - ecr:GetAuthorizationToken
-                - ecr:BatchCheckLayerAvailability
-                - ecr:GetDownloadUrlForLayer
-                - ecr:BatchGetImage
-              Resource:
-                - !Sub arn:aws:ecr:${AWS::Region}:${ContainerAccountId}:repository/${ApplicationName}
-        - PolicyName: SSMPolicy
+              Action: ecs:RunTask
+              Effect: Allow
+              Resource: !Ref ECSTask
+        - PolicyName: DataFetchPassIamRolePolicy
           PolicyDocument:
-            Version: '2012-10-17'
             Statement:
-            - Effect: Allow
-              Action:
-                - ecs:RunTask
-              Resource:
-                - !Ref ECSTask
-            - Effect: Allow
               Action: iam:PassRole
-              Resource:
-                - !Ref ECSTask
+              Effect: Allow
+              Resource: "*"
               Condition:
                 StringLike:
                   iam:PassedToService: ecs-tasks.amazonaws.com
+        - PolicyName: DataFetchTagResourcePolicy
+          PolicyDocument:
+            Statement:
+              Action: ecs:TagResource
+              Effect: Allow
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  ecs:CreateAction:
+                    - RunTask
+        - PolicyName: DataFetchPassRolePolicy
+          PolicyDocument:
+            Statement:
+              Action: iam:PassRole
+              Effect: Allow
+              Resource:
+                - !GetAtt S3Role.Arn
+                - !GetAtt SsmRole.Arn
 
-  EventRule:
-    Type: AWS::Events::Rule
+  ExportSchedule:
+    Type: AWS::Scheduler::Schedule
     Properties:
+      Description: Triggers fetch of data from ArchivesSpace
+      FlexibleTimeWindow:
+          Mode: "OFF"
+      Name: ArchivesSpaceDataExportSchedule
       ScheduleExpression: cron(0 8 15 * ? *)
-      Targets:
-        - Id: AsExport
-          Arn: !GetAtt ECSCluster.Arn
-          RoleArn: !GetAtt EventbridgeRole.Arn
-          EcsParameters:
-            EnableExecuteCommand: true
-            LaunchType: FARGATE
-            TaskDefinitionArn: !Ref ECSTask
-            NetworkConfiguration:
-              AwsVpcConfiguration:
-                AssignPublicIp: ENABLED
-                Subnets: 
-                  - !Ref SubnetList
-                SecurityGroups:
-                  - !Ref TaskSecurityGroup
+      State: DISABLED
+      Target:
+        Arn: !GetAtt ECSCluster.Arn
+        EcsParameters:
+          LaunchType: FARGATE
+          TaskDefinitionArn: !Ref ECSTask
+          NetworkConfiguration:
+            AwsvpcConfiguration:
+              Subnets: 
+                - !Sub '{{resolve:secretsmanager:${ApplicationEnvironment}/as-data-export-deploy:SecretString:SubnetList}}'
+              SecurityGroups:
+                - !Sub '{{resolve:secretsmanager:${ApplicationEnvironment}/as-data-export-deploy:SecretString:TaskSecurityGroup}}'
+        RoleArn: !GetAtt EventbridgeRole.Arn
 
   S3Bucket:
     Type: AWS::S3::Bucket
