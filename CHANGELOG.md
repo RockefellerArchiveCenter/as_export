@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.6](https://github.com/RockefellerArchiveCenter/as_export/compare/v1.0.5...v1.0.6) (2026-10-05)
+
+
+### Bug Fixes
+
+* **deps:** Scheduled dependency updates ([f91b0e6](https://github.com/RockefellerArchiveCenter/as_export/commit/f91b0e6115b65926bcb24cd4049d9f11c09ebb9d))
+* **deps:** Scheduled dependency updates ([f91b0e6](https://github.com/RockefellerArchiveCenter/as_export/commit/f91b0e6115b65926bcb24cd4049d9f11c09ebb9d))
+* **deps:** Scheduled dependency updates ([fbf9570](https://github.com/RockefellerArchiveCenter/as_export/commit/fbf9570d4bd2f08d5e3ac27e02f8e77a6c7a3f20))
+* **deps:** Scheduled dependency updates ([fbf9570](https://github.com/RockefellerArchiveCenter/as_export/commit/fbf9570d4bd2f08d5e3ac27e02f8e77a6c7a3f20))
+* **deps:** Scheduled dependency updates ([f057027](https://github.com/RockefellerArchiveCenter/as_export/commit/f057027907d1bd24e23e32d87e61df5a342e0253))
+
 ## [1.0.5](https://github.com/RockefellerArchiveCenter/as_export/compare/v1.0.4...v1.0.5) (2026-09-17)
 
 
