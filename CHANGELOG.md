@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.7](https://github.com/RockefellerArchiveCenter/as_export/compare/v1.0.6...v1.0.7) (2026-10-22)
+
+
+### Bug Fixes
+
+* update pip ([22c69a1](https://github.com/RockefellerArchiveCenter/as_export/commit/22c69a105fde1b9ef8c111714822681c293fda36))
+* update pip ([22c69a1](https://github.com/RockefellerArchiveCenter/as_export/commit/22c69a105fde1b9ef8c111714822681c293fda36))
+* update pip ([cd1aea7](https://github.com/RockefellerArchiveCenter/as_export/commit/cd1aea7312dbccd63489f680c32b7098325d7586))
+* update pip ([cd1aea7](https://github.com/RockefellerArchiveCenter/as_export/commit/cd1aea7312dbccd63489f680c32b7098325d7586))
+* update pip ([95cea9f](https://github.com/RockefellerArchiveCenter/as_export/commit/95cea9f5a36ba1534a84462f1d778665422c97d7))
+
 ## [1.0.6](https://github.com/RockefellerArchiveCenter/as_export/compare/v1.0.5...v1.0.6) (2026-10-05)
 
 
