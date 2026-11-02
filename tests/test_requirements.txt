@@ -1,17 +1,17 @@
-boto3==1.43.117
+boto3==1.43.123
     # via moto
-botocore==1.43.117
+botocore==1.43.123
     # via
     #   boto3
     #   moto
     #   s3transfer
-certifi==2026.10.19
+certifi==2026.10.23
     # via requests
 cffi==2.1.1
     # via cryptography
 charset-normalizer==3.5.2
     # via requests
-coverage==7.16.2
+coverage==7.17.0
     # via -r tests/test_requirements.in
 cryptography==50.0.2
     # via moto
@@ -25,13 +25,13 @@ jmespath==1.1.0
     #   botocore
 markupsafe==3.0.4
     # via werkzeug
-moto==5.2.4
+moto==5.2.5
     # via -r tests/test_requirements.in
 packaging==26.3
     # via pytest
 pluggy==1.7.0
     # via pytest
-pycparser==3.11
+pycparser==3.12
     # via cffi
 pygments==2.21.0
     # via pytest
