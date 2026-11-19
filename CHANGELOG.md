@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.9](https://github.com/RockefellerArchiveCenter/as_export/compare/v1.0.8...v1.0.9) (2026-11-19)
+
+
+### Bug Fixes
+
+* update deploy ([6fc3a8c](https://github.com/RockefellerArchiveCenter/as_export/commit/6fc3a8c8520e4f2b6ebd1ec980b5987c41f9142b))
+* update deploy ([140fe7d](https://github.com/RockefellerArchiveCenter/as_export/commit/140fe7d6b394e167ec7af1c34f1d08adf371a71b))
+* update deploy workflow ([34b9af7](https://github.com/RockefellerArchiveCenter/as_export/commit/34b9af74e9a235f67308d029457c77b783c84722))
+
 ## [1.0.8](https://github.com/RockefellerArchiveCenter/as_export/compare/v1.0.7...v1.0.8) (2026-11-02)
 
 
